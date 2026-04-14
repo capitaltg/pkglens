@@ -258,7 +258,7 @@ async function bundlePackage(
 async function gzipSize(buf: Buffer): Promise<number> {
   const chunks: Buffer[] = []
   const gzip = createGzip({ level: 9 })
-  await pipeline(Readable.from(buf), gzip, async function* (source) {
+  await pipeline(Readable.from(buf), gzip, async (source) => {
     for await (const chunk of source) {
       chunks.push(Buffer.from(chunk))
     }

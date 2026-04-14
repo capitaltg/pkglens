@@ -521,7 +521,7 @@ function PackageDetailPage() {
       {initial.status === 'complete' && initial.data ? (
         <AnalysisResult data={initial.data} ecosystem={ecosystem} />
       ) : initial.status === 'pending' || initial.status === 'running' ? (
-        <PendingState jobId={initial.jobId!} ecosystem={ecosystem} />
+        <PendingState jobId={initial.jobId ?? 0} ecosystem={ecosystem} />
       ) : initial.status === 'failed' ? (
         <div
           role="alert"
