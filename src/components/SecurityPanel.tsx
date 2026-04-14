@@ -84,7 +84,10 @@ export function SecurityPanel({ vulnerabilities }: SecurityPanelProps) {
       </ul>
 
       {/* Vuln list */}
-      <ul aria-label="Vulnerabilities" className="space-y-2 list-none p-0 m-0">
+      <ul
+        aria-label="Vulnerabilities"
+        className="mt-4 space-y-3 list-none p-0 m-0"
+      >
         {sorted.map((v) => (
           <li
             key={v.id}

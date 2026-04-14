@@ -5,13 +5,13 @@ interface MaintenancePanelProps {
   data: MaintenanceData
 }
 
-function formatDownloads(n: number): string {
+export function formatDownloads(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
   return String(n)
 }
 
-function timeAgo(iso: string): string {
+export function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
   if (days < 1) return 'Today'
@@ -21,6 +21,13 @@ function timeAgo(iso: string): string {
   if (months < 12) return `${months} month${months > 1 ? 's' : ''} ago`
   const years = Math.floor(days / 365)
   return `${years} year${years > 1 ? 's' : ''} ago`
+}
+
+export function normalizeRepoUrl(url: string): string {
+  return url
+    .replace(/^git\+/, '')
+    .replace(/^git:\/\//, 'https://')
+    .replace(/\.git$/, '')
 }
 
 function ExpandableText({ text }: { text: string }) {
@@ -44,22 +51,6 @@ function ExpandableText({ text }: { text: string }) {
   )
 }
 
-interface StatProps {
-  label: string
-  value: React.ReactNode
-}
-
-function Stat({ label, value }: StatProps) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs text-[var(--sea-ink-soft)]">{label}</dt>
-      <dd className="m-0 text-sm font-semibold text-[var(--sea-ink)]">
-        {value}
-      </dd>
-    </div>
-  )
-}
-
 export function MaintenancePanel({ data }: MaintenancePanelProps) {
   return (
     <div className="space-y-4">
@@ -73,49 +64,41 @@ export function MaintenancePanel({ data }: MaintenancePanelProps) {
       )}
 
       <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Stat label="Last published" value={timeAgo(data.lastPublishedAt)} />
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-xs text-[var(--sea-ink-soft)]">Last published</dt>
+          <dd className="m-0 text-sm font-semibold text-[var(--sea-ink)]">
+            {new Date(data.lastPublishedAt).toLocaleDateString(undefined, {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+            })}
+          </dd>
+        </div>
         {data.weeklyDownloads !== undefined && (
-          <Stat
-            label="Weekly downloads"
-            value={formatDownloads(data.weeklyDownloads)}
-          />
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-xs text-[var(--sea-ink-soft)]">
+              Weekly downloads
+            </dt>
+            <dd className="m-0 text-sm font-semibold text-[var(--sea-ink)]">
+              {formatDownloads(data.weeklyDownloads)}
+            </dd>
+          </div>
         )}
-        {data.license && (
-          <Stat
-            label="License"
-            value={<ExpandableText text={data.license} />}
-          />
+        {data.typescriptSupport && data.typescriptSupport !== 'none' && (
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-xs text-[var(--sea-ink-soft)]">TypeScript</dt>
+            <dd className="m-0 text-sm font-semibold text-[var(--sea-ink)]">
+              <ExpandableText
+                text={
+                  data.typescriptSupport === 'bundled'
+                    ? 'Bundled types'
+                    : 'DefinitelyTyped'
+                }
+              />
+            </dd>
+          </div>
         )}
       </dl>
-
-      {data.description && (
-        <p className="m-0 text-sm text-[var(--sea-ink-soft)]">
-          {data.description}
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-3 text-sm">
-        {data.homepage && (
-          <a
-            href={data.homepage}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Homepage (opens in new tab)"
-          >
-            Homepage ↗
-          </a>
-        )}
-        {data.repositoryUrl && (
-          <a
-            href={normalizeRepoUrl(data.repositoryUrl)}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Repository (opens in new tab)"
-          >
-            Repository ↗
-          </a>
-        )}
-      </div>
 
       {data.keywords && data.keywords.length > 0 && (
         <ul
@@ -134,11 +117,4 @@ export function MaintenancePanel({ data }: MaintenancePanelProps) {
       )}
     </div>
   )
-}
-
-function normalizeRepoUrl(url: string): string {
-  return url
-    .replace(/^git\+/, '')
-    .replace(/^git:\/\//, 'https://')
-    .replace(/\.git$/, '')
 }

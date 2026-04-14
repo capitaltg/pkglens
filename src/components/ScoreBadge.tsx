@@ -6,7 +6,7 @@ interface ScoreBadgeProps {
   size?: 'sm' | 'md' | 'lg'
 }
 
-const gradeStyles: Record<ScoreData['grade'], string> = {
+export const gradeStyles: Record<ScoreData['grade'], string> = {
   A: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800',
   B: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-300 dark:border-teal-800',
   C: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800',
