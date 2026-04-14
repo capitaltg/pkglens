@@ -24,7 +24,7 @@ export function ScoreBadge({ score, size = 'md' }: ScoreBadgeProps) {
   return (
     <div
       className="flex flex-col items-center gap-1"
-      aria-label={`Health grade: ${score.grade}, composite score ${score.composite} out of 100`}
+      aria-label={`Quality grade: ${score.grade}, composite score ${score.composite} out of 100`}
     >
       <div
         aria-hidden="true"

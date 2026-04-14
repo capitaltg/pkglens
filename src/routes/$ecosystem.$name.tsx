@@ -5,11 +5,16 @@ import { SizeMetrics } from '#/components/SizeMetrics'
 import { SecurityPanel } from '#/components/SecurityPanel'
 import { MaintenancePanel } from '#/components/MaintenancePanel'
 import { DepTree } from '#/components/DepTree'
+import type { DepNode } from '#/db/schema'
 import {
   getPackageAnalysis,
   getJobStatus,
   type AnalysisResponse,
 } from '#/server/analysis'
+
+function countAllNodes(nodes: DepNode[]): number {
+  return nodes.reduce((sum, n) => sum + 1 + countAllNodes(n.children), 0)
+}
 
 export const Route = createFileRoute('/$ecosystem/$name')({
   component: PackageDetailPage,
@@ -33,9 +38,13 @@ const ECOSYSTEM_LABELS: Record<string, string> = {
 
 function SectionCard({
   title,
+  titleAction,
+  meta,
   children,
 }: {
   title: string
+  titleAction?: React.ReactNode
+  meta?: React.ReactNode
   children: React.ReactNode
 }) {
   const id = `section-${title.toLowerCase().replace(/\s+/g, '-')}`
@@ -44,12 +53,18 @@ function SectionCard({
       aria-labelledby={id}
       className="island-shell rounded-xl p-5 sm:p-6"
     >
-      <h2
-        id={id}
-        className="mb-4 text-sm font-bold uppercase tracking-widest text-[var(--sea-ink-soft)]"
-      >
-        {title}
-      </h2>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <h2
+            id={id}
+            className="text-sm font-bold uppercase tracking-widest text-[var(--sea-ink-soft)]"
+          >
+            {title}
+          </h2>
+          {titleAction}
+        </div>
+        {meta && <div className="flex items-center gap-2 text-sm">{meta}</div>}
+      </div>
       {children}
     </section>
   )
@@ -119,12 +134,28 @@ function AnalysisResult({
   data: NonNullable<AnalysisResponse['data']>
 }) {
   const totalBytes = data.depTree.reduce((s, n) => s + n.totalBytes, 0)
+  const directCount = data.depTree.length
+  const totalCount = countAllNodes(data.depTree)
+  const [treeExpanded, setTreeExpanded] = useState<boolean | undefined>(
+    undefined,
+  )
+  const [treeForceVersion, setTreeForceVersion] = useState(0)
+  const allExpanded = treeExpanded === true
+
+  function expandAll() {
+    setTreeExpanded(true)
+    setTreeForceVersion((v) => v + 1)
+  }
+  function collapseAll() {
+    setTreeExpanded(false)
+    setTreeForceVersion((v) => v + 1)
+  }
 
   return (
     <div className="grid gap-4">
       {/* Hero row: score + size */}
       <div className="grid gap-4 sm:grid-cols-[auto_1fr]">
-        <SectionCard title="Health Score">
+        <SectionCard title="Quality Score">
           <div className="flex flex-col items-center gap-4">
             <ScoreBadge score={data.scoreData} size="lg" />
             <ScoreBreakdown score={data.scoreData} />
@@ -144,8 +175,35 @@ function AnalysisResult({
       </div>
 
       {/* Dependency tree */}
-      <SectionCard title="Dependency Tree">
-        <DepTree nodes={data.depTree} totalBytes={totalBytes} />
+      <SectionCard
+        title="Dependency Tree"
+        titleAction={
+          <button
+            type="button"
+            onClick={allExpanded ? collapseAll : expandAll}
+            className="text-xs font-semibold text-[var(--lagoon-deep)] hover:underline"
+          >
+            {allExpanded ? 'Collapse all' : 'Expand all'}
+          </button>
+        }
+        meta={
+          <>
+            <span className="font-semibold text-[var(--sea-ink)]">
+              {directCount} direct
+            </span>
+            <span className="text-[var(--line)]">·</span>
+            <span className="text-[var(--sea-ink-soft)]">
+              {totalCount} total
+            </span>
+          </>
+        }
+      >
+        <DepTree
+          nodes={data.depTree}
+          totalBytes={totalBytes}
+          forceExpanded={treeExpanded}
+          forceVersion={treeForceVersion}
+        />
       </SectionCard>
 
       {/* Security */}

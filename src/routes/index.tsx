@@ -335,7 +335,7 @@ function HomePage() {
           },
           {
             icon: '⭐',
-            title: 'Health score',
+            title: 'Quality score',
             desc: 'Composite A–F grade combining size, security, and maintenance freshness.',
           },
         ].map(({ icon, title, desc }, i) => (
