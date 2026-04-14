@@ -11,7 +11,7 @@ export default function Header() {
         {/* Wordmark */}
         <Link
           to="/"
-          aria-label="DepLens home"
+          aria-label="Dependency Lens home"
           className="flex items-center gap-2 no-underline"
         >
           <svg
@@ -68,7 +68,7 @@ export default function Header() {
             />
           </svg>
           <span className="text-sm font-extrabold tracking-tight text-[var(--sea-ink)]">
-            DepLens
+            Dependency Lens
           </span>
         </Link>
 
@@ -89,7 +89,7 @@ export default function Header() {
             href="https://github.com/capitaltg/pkglens"
             target="_blank"
             rel="noreferrer"
-            aria-label="DepLens on GitHub (opens in new tab)"
+            aria-label="Dependency Lens on GitHub (opens in new tab)"
             className="rounded-lg p-2 text-[var(--sea-ink-soft)] hover:bg-[var(--link-bg-hover)] hover:text-[var(--sea-ink)]"
           >
             <svg

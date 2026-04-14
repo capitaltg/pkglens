@@ -19,7 +19,7 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'DepLens — Analyze the true cost of any dependency',
+        title: 'Dependency Lens — Analyze the true cost of any dependency',
       },
     ],
     links: [

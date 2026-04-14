@@ -153,7 +153,7 @@ function HomePage() {
         </p>
         <h1 className="mb-5 text-5xl font-black leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
           <span className="bg-gradient-to-br from-[#4f46e5] via-[#7c3aed] to-[#6366f1] bg-clip-text text-transparent">
-            DepLens
+            Dependency Lens
           </span>
         </h1>
         <p className="mx-auto mb-10 max-w-lg text-base text-[var(--sea-ink-soft)] sm:text-lg">
