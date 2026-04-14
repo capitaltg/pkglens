@@ -345,6 +345,26 @@ function HomePage() {
             title: 'Quality score',
             desc: 'Composite A–F grade combining size, security, and maintenance freshness.',
           },
+          {
+            icon: '🩺',
+            title: 'Maintenance health',
+            desc: 'Last published date, weekly download trends, and deprecated or yanked status — know if a package is still alive before you commit.',
+          },
+          {
+            icon: '📜',
+            title: 'Full CVE history',
+            desc: 'Beyond active CVEs: the complete vulnerability track record and how quickly the maintainers ship fixes after disclosure.',
+          },
+          {
+            icon: '↔️',
+            title: 'Side-by-side comparison',
+            desc: 'Compare two packages head-to-head across every scoring dimension to make an informed choice.',
+          },
+          {
+            icon: '🌐',
+            title: 'Multi-ecosystem',
+            desc: 'Analyze packages across npm (JS/TS), PyPI (Python), and Maven (JVM) — all from a single search.',
+          },
         ].map(({ icon, title, desc }, i) => (
           <article
             key={title}
