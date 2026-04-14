@@ -5,6 +5,7 @@ import { SizeMetrics } from '#/components/SizeMetrics'
 import { SecurityPanel } from '#/components/SecurityPanel'
 import { MaintenancePanel } from '#/components/MaintenancePanel'
 import { DepTree } from '#/components/DepTree'
+import { BundleTreemap } from '#/components/BundleTreemap'
 import type { DepNode } from '#/db/schema'
 import {
   getPackageAnalysis,
@@ -173,6 +174,11 @@ function AnalysisResult({
           </p>
         </SectionCard>
       </div>
+
+      {/* Bundle map */}
+      <SectionCard title="Bundle Map">
+        <BundleTreemap nodes={data.depTree} />
+      </SectionCard>
 
       {/* Dependency tree */}
       <SectionCard
