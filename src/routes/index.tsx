@@ -59,6 +59,8 @@ function HomePage() {
             top: rect.bottom + 6,
             left: rect.left,
             width: rect.width,
+            maxHeight: window.innerHeight - rect.bottom - 16,
+            overflowY: 'auto',
             zIndex: 50,
           })
         }
@@ -146,15 +148,6 @@ function HomePage() {
     <main className="page-wrap px-4 pb-16 pt-14">
       {/* Hero */}
       <section className="rise-in px-2 py-16 text-center sm:py-24">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -left-20 -top-24 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(79,184,178,0.32),transparent_66%)]"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-20 -right-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(47,106,74,0.18),transparent_66%)]"
-        />
-
         <p className="island-kicker mb-5">
           Analyze the true cost of any dependency
         </p>
