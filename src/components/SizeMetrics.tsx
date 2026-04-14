@@ -22,8 +22,8 @@ function Metric({
 }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-[var(--sea-ink-soft)]">{label}</span>
-      <span className="text-lg font-bold text-[var(--sea-ink)]">{value}</span>
+      <dt className="text-xs text-[var(--sea-ink-soft)]">{label}</dt>
+      <dd className="m-0 text-lg font-bold text-[var(--sea-ink)]">{value}</dd>
       {note && (
         <span className="text-xs text-[var(--sea-ink-soft)]">{note}</span>
       )}
@@ -42,7 +42,7 @@ function loadTime(gzipBytes: number): string {
 
 export function SizeMetrics({ sizeData }: SizeMetricsProps) {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+    <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
       <Metric
         label="Minified"
         value={formatBytes(sizeData.minifiedBytes)}
@@ -65,6 +65,6 @@ export function SizeMetrics({ sizeData }: SizeMetricsProps) {
           note="With unused exports removed"
         />
       )}
-    </div>
+    </dl>
   )
 }

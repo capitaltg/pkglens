@@ -30,10 +30,10 @@ interface StatProps {
 function Stat({ label, value }: StatProps) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-[var(--sea-ink-soft)]">{label}</span>
-      <span className="text-sm font-semibold text-[var(--sea-ink)]">
+      <dt className="text-xs text-[var(--sea-ink-soft)]">{label}</dt>
+      <dd className="m-0 text-sm font-semibold text-[var(--sea-ink)]">
         {value}
-      </span>
+      </dd>
     </div>
   )
 }
@@ -42,12 +42,15 @@ export function MaintenancePanel({ data }: MaintenancePanelProps) {
   return (
     <div className="space-y-4">
       {data.isDeprecated && (
-        <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-300">
+        <div
+          role="alert"
+          className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-300"
+        >
           ⚠ This package is deprecated
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <Stat label="Last published" value={timeAgo(data.lastPublishedAt)} />
         {data.weeklyDownloads !== undefined && (
           <Stat
@@ -56,7 +59,7 @@ export function MaintenancePanel({ data }: MaintenancePanelProps) {
           />
         )}
         {data.license && <Stat label="License" value={data.license} />}
-      </div>
+      </dl>
 
       {data.description && (
         <p className="m-0 text-sm text-[var(--sea-ink-soft)]">
@@ -66,7 +69,12 @@ export function MaintenancePanel({ data }: MaintenancePanelProps) {
 
       <div className="flex flex-wrap gap-3 text-sm">
         {data.homepage && (
-          <a href={data.homepage} target="_blank" rel="noreferrer">
+          <a
+            href={data.homepage}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Homepage (opens in new tab)"
+          >
             Homepage ↗
           </a>
         )}
@@ -75,6 +83,7 @@ export function MaintenancePanel({ data }: MaintenancePanelProps) {
             href={normalizeRepoUrl(data.repositoryUrl)}
             target="_blank"
             rel="noreferrer"
+            aria-label="Repository (opens in new tab)"
           >
             Repository ↗
           </a>
@@ -82,23 +91,25 @@ export function MaintenancePanel({ data }: MaintenancePanelProps) {
       </div>
 
       {data.keywords && data.keywords.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <ul
+          aria-label="Keywords"
+          className="flex flex-wrap gap-1.5 list-none p-0 m-0"
+        >
           {data.keywords.slice(0, 12).map((kw) => (
-            <span
+            <li
               key={kw}
               className="rounded-full border border-[var(--line)] bg-[var(--chip-bg)] px-2.5 py-0.5 text-xs text-[var(--sea-ink-soft)]"
             >
               {kw}
-            </span>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   )
 }
 
 function normalizeRepoUrl(url: string): string {
-  // Convert git+https:// or git:// to https://
   return url
     .replace(/^git\+/, '')
     .replace(/^git:\/\//, 'https://')

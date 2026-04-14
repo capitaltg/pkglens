@@ -38,9 +38,16 @@ function SectionCard({
   title: string
   children: React.ReactNode
 }) {
+  const id = `section-${title.toLowerCase().replace(/\s+/g, '-')}`
   return (
-    <section className="island-shell rounded-2xl p-5 sm:p-6">
-      <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-[var(--sea-ink-soft)]">
+    <section
+      aria-labelledby={id}
+      className="island-shell rounded-2xl p-5 sm:p-6"
+    >
+      <h2
+        id={id}
+        className="mb-4 text-sm font-bold uppercase tracking-widest text-[var(--sea-ink-soft)]"
+      >
         {title}
       </h2>
       {children}
@@ -76,15 +83,26 @@ function PendingState({ jobId }: { jobId: number }) {
 
   if (status?.status === 'failed') {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+      <div
+        role="alert"
+        className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+      >
         Analysis failed: {status.error}
       </div>
     )
   }
 
   return (
-    <div className="island-shell rounded-2xl p-8 text-center">
-      <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-[var(--lagoon-deep)] border-t-transparent" />
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label="Analyzing package"
+      className="island-shell rounded-2xl p-8 text-center"
+    >
+      <div
+        aria-hidden="true"
+        className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-[var(--lagoon-deep)] border-t-transparent"
+      />
       <p className="text-sm font-medium text-[var(--sea-ink)]">
         Analyzing package…
       </p>
@@ -152,7 +170,7 @@ function PackageDetailPage() {
   return (
     <main className="page-wrap px-4 pb-16 pt-8">
       {/* Page header */}
-      <div className="rise-in mb-6">
+      <header className="rise-in mb-6">
         <p className="island-kicker mb-1">{ecosystemLabel}</p>
         <h1 className="display-title text-3xl font-bold text-[var(--sea-ink)] sm:text-4xl">
           {name}
@@ -167,7 +185,7 @@ function PackageDetailPage() {
             v{initial.data.version}
           </p>
         )}
-      </div>
+      </header>
 
       {/* Content */}
       {initial.status === 'complete' && initial.data ? (
@@ -175,7 +193,10 @@ function PackageDetailPage() {
       ) : initial.status === 'pending' || initial.status === 'running' ? (
         <PendingState jobId={initial.jobId!} />
       ) : initial.status === 'failed' ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+        >
           Analysis failed: {initial.error}
         </div>
       ) : null}

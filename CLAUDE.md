@@ -94,6 +94,19 @@ REDIS_URL=redis://localhost:6379
 3. Worker picks up job → runs ecosystem analyzer → scores results → persists to DB
 4. Client polls `/api/job/:jobId` until `status === "complete"`, then renders detail page
 
+## Accessibility (A11y)
+
+Accessibility is a first-class requirement, not an afterthought. Every frontend component must meet WCAG 2.1 AA standards from the moment it is written.
+
+- **Semantic HTML first**: use `<button>`, `<nav>`, `<main>`, `<header>`, `<section>`, `<dl>`/`<dt>`/`<dd>`, `<ul>`/`<li>` — not `<div onClick>`
+- **Keyboard navigation**: every interactive widget must be fully operable via keyboard (focus, Arrow keys, Enter/Space to activate, Escape to close/cancel)
+- **ARIA when needed**: apply `role`, `aria-label`, `aria-labelledby`, `aria-expanded`, `aria-controls`, `aria-activedescendant`, `aria-selected`, `aria-live`, `aria-busy`, `aria-hidden` where semantic HTML is insufficient
+- **Follow ARIA patterns**: combobox (search autocomplete), tree/treeitem (dep tree), progressbar (score bars), alert (errors/warnings), status (loading states)
+- **Visual-only content**: mark decorative elements `aria-hidden="true"` so screen readers skip them
+- **Live regions**: use `role="status"` (polite) or `role="alert"` (assertive) for dynamic content changes
+- **External links**: always include `aria-label="X (opens in new tab)"` and `rel="noreferrer"`
+- **Verify before done**: manually test keyboard-only navigation for every interactive widget before marking work complete
+
 ## Scoring model (rule-based)
 
 - **Size** (40%): percentile rank among all analyzed packages in the same ecosystem

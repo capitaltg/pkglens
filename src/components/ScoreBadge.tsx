@@ -22,18 +22,21 @@ const sizeStyles = {
 
 export function ScoreBadge({ score, size = 'md' }: ScoreBadgeProps) {
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div
+      className="flex flex-col items-center gap-1"
+      aria-label={`Health grade: ${score.grade}, composite score ${score.composite} out of 100`}
+    >
       <div
+        aria-hidden="true"
         className={cn(
           'flex items-center justify-center rounded-xl border-2 font-bold font-mono',
           gradeStyles[score.grade],
           sizeStyles[size],
         )}
-        title={`Composite score: ${score.composite}/100`}
       >
         {score.grade}
       </div>
-      <span className="text-xs text-[var(--sea-ink-soft)]">
+      <span aria-hidden="true" className="text-xs text-[var(--sea-ink-soft)]">
         {score.composite}/100
       </span>
     </div>
@@ -51,18 +54,34 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
       : value >= 40
         ? 'bg-yellow-500'
         : 'bg-red-500'
+  const labelId = `score-label-${label.toLowerCase()}`
   return (
     <div className="flex items-center gap-3">
-      <span className="w-24 flex-shrink-0 text-right text-xs text-[var(--sea-ink-soft)]">
+      <span
+        id={labelId}
+        className="w-24 flex-shrink-0 text-right text-xs text-[var(--sea-ink-soft)]"
+      >
         {label}
       </span>
-      <div className="h-1.5 flex-1 rounded-full bg-[var(--line)]">
+      <div
+        role="progressbar"
+        aria-labelledby={labelId}
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuetext={`${value} out of 100`}
+        className="h-1.5 flex-1 rounded-full bg-[var(--line)]"
+      >
         <div
+          aria-hidden="true"
           className={cn('h-full rounded-full transition-all', color)}
           style={{ width: `${value}%` }}
         />
       </div>
-      <span className="w-8 text-right text-xs font-semibold text-[var(--sea-ink)]">
+      <span
+        aria-hidden="true"
+        className="w-8 text-right text-xs font-semibold text-[var(--sea-ink)]"
+      >
         {value}
       </span>
     </div>

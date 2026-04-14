@@ -35,8 +35,13 @@ const severityStyles: Record<Vulnerability['severity'], string> = {
 export function SecurityPanel({ vulnerabilities }: SecurityPanelProps) {
   if (vulnerabilities.length === 0) {
     return (
-      <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
-        <span className="text-base">✓</span>
+      <div
+        role="status"
+        className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400"
+      >
+        <span aria-hidden="true" className="text-base">
+          ✓
+        </span>
         No known vulnerabilities found via OSV
       </div>
     )
@@ -58,24 +63,28 @@ export function SecurityPanel({ vulnerabilities }: SecurityPanelProps) {
   return (
     <div className="space-y-4">
       {/* Summary chips */}
-      <div className="flex flex-wrap gap-2">
+      <ul
+        aria-label="Vulnerability summary by severity"
+        className="flex flex-wrap gap-2 list-none p-0 m-0"
+      >
         {severityOrder
           .filter((s) => counts[s])
           .map((s) => (
-            <span
-              key={s}
-              className={cn(
-                'rounded-full border px-3 py-0.5 text-xs font-semibold',
-                severityStyles[s],
-              )}
-            >
-              {counts[s]} {severityLabel[s]}
-            </span>
+            <li key={s}>
+              <span
+                className={cn(
+                  'rounded-full border px-3 py-0.5 text-xs font-semibold',
+                  severityStyles[s],
+                )}
+              >
+                {counts[s]} {severityLabel[s]}
+              </span>
+            </li>
           ))}
-      </div>
+      </ul>
 
       {/* Vuln list */}
-      <ul className="space-y-2">
+      <ul aria-label="Vulnerabilities" className="space-y-2 list-none p-0 m-0">
         {sorted.map((v) => (
           <li
             key={v.id}
@@ -83,7 +92,10 @@ export function SecurityPanel({ vulnerabilities }: SecurityPanelProps) {
           >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="mb-0.5 text-sm font-semibold text-[var(--sea-ink)]">
+                <p
+                  className="mb-0.5 text-sm font-semibold text-[var(--sea-ink)]"
+                  aria-label={`Vulnerability ID: ${v.id}`}
+                >
                   {v.id}
                 </p>
                 <p className="m-0 text-sm text-[var(--sea-ink-soft)]">
@@ -91,17 +103,20 @@ export function SecurityPanel({ vulnerabilities }: SecurityPanelProps) {
                 </p>
                 {v.aliases.length > 0 && (
                   <p className="mt-1 m-0 text-xs text-[var(--sea-ink-soft)]">
-                    Also known as: {v.aliases.join(', ')}
+                    <span className="sr-only">Also known as: </span>
+                    <span aria-hidden="true">Also known as: </span>
+                    {v.aliases.join(', ')}
                   </p>
                 )}
               </div>
               <span
+                aria-label={`Severity: ${severityLabel[v.severity]}`}
                 className={cn(
                   'flex-shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold',
                   severityStyles[v.severity],
                 )}
               >
-                {severityLabel[v.severity]}
+                <span aria-hidden="true">{severityLabel[v.severity]}</span>
               </span>
             </div>
           </li>
