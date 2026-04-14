@@ -24,7 +24,9 @@ function Metric({
     <div className="flex flex-col gap-0.5">
       <span className="text-xs text-[var(--sea-ink-soft)]">{label}</span>
       <span className="text-lg font-bold text-[var(--sea-ink)]">{value}</span>
-      {note && <span className="text-xs text-[var(--sea-ink-soft)]">{note}</span>}
+      {note && (
+        <span className="text-xs text-[var(--sea-ink-soft)]">{note}</span>
+      )}
     </div>
   )
 }

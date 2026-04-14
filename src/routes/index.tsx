@@ -36,7 +36,9 @@ function HomePage() {
         <div className="pointer-events-none absolute -left-20 -top-24 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(79,184,178,0.32),transparent_66%)]" />
         <div className="pointer-events-none absolute -bottom-20 -right-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(47,106,74,0.18),transparent_66%)]" />
 
-        <p className="island-kicker mb-3">Analyze the true cost of any dependency</p>
+        <p className="island-kicker mb-3">
+          Analyze the true cost of any dependency
+        </p>
         <h1 className="display-title mb-4 text-4xl font-bold leading-[1.05] tracking-tight text-[var(--sea-ink)] sm:text-5xl">
           DepLens
         </h1>

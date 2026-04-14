@@ -18,14 +18,12 @@ export async function analyzePypiPackage(
 
   const info = meta.info as Record<string, unknown>
   const version = (info.version as string) ?? 'unknown'
-  const releases =
-    (meta.releases as Record<string, unknown[]>) ?? {}
+  const releases = (meta.releases as Record<string, unknown[]>) ?? {}
   const urlList = (meta.urls as PypiBuildFile[]) ?? []
 
   const maintenanceData: MaintenanceData = {
     lastPublishedAt: extractLastPublished(releases, urlList),
-    isDeprecated:
-      typeof info.yanked === 'boolean' ? info.yanked : false,
+    isDeprecated: typeof info.yanked === 'boolean' ? info.yanked : false,
     description: (info.summary as string) ?? undefined,
     license: (info.license as string) ?? undefined,
     homepage: (info.home_page as string) ?? undefined,

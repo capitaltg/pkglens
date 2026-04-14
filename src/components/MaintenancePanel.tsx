@@ -31,7 +31,9 @@ function Stat({ label, value }: StatProps) {
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-xs text-[var(--sea-ink-soft)]">{label}</span>
-      <span className="text-sm font-semibold text-[var(--sea-ink)]">{value}</span>
+      <span className="text-sm font-semibold text-[var(--sea-ink)]">
+        {value}
+      </span>
     </div>
   )
 }
@@ -46,10 +48,7 @@ export function MaintenancePanel({ data }: MaintenancePanelProps) {
       )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Stat
-          label="Last published"
-          value={timeAgo(data.lastPublishedAt)}
-        />
+        <Stat label="Last published" value={timeAgo(data.lastPublishedAt)} />
         {data.weeklyDownloads !== undefined && (
           <Stat
             label="Weekly downloads"

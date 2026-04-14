@@ -7,6 +7,7 @@ Analyze the true cost of any dependency across ecosystems. A free, open-source a
 ### 1. Install PostgreSQL and Redis
 
 **macOS (Homebrew):**
+
 ```bash
 brew install postgresql@16 redis
 brew services start postgresql@16
@@ -14,6 +15,7 @@ brew services start redis
 ```
 
 Add the PostgreSQL binaries to your PATH (add this to your `~/.zshrc` or `~/.bashrc`):
+
 ```bash
 # Apple Silicon (M1/M2/M3):
 export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"
@@ -22,6 +24,7 @@ export PATH="/usr/local/opt/postgresql@16/bin:$PATH"
 ```
 
 Then reload your shell:
+
 ```bash
 source ~/.zshrc
 ```
@@ -60,6 +63,7 @@ npm run db:push
 You need two processes running simultaneously — open two terminal windows:
 
 **Terminal 1 — web server:**
+
 ```bash
 npm run dev
 ```
@@ -67,6 +71,7 @@ npm run dev
 The app will be available at [http://localhost:3000](http://localhost:3000).
 
 **Terminal 2 — analysis worker:**
+
 ```bash
 npm run worker
 ```

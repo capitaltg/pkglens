@@ -10,11 +10,7 @@
 import { Worker } from 'bullmq'
 import { eq } from 'drizzle-orm'
 import { db } from '../src/db/index.ts'
-import {
-  analysisJobs,
-  analysisResults,
-  packages,
-} from '../src/db/schema.ts'
+import { analysisJobs, analysisResults, packages } from '../src/db/schema.ts'
 import { analyzeNpmPackage } from '../src/lib/analyzers/npm.ts'
 import { analyzePypiPackage } from '../src/lib/analyzers/pypi.ts'
 import { analyzeMavenPackage } from '../src/lib/analyzers/maven.ts'
@@ -45,7 +41,9 @@ const worker = new Worker(
         .where(eq(analysisJobs.id, dbJobId))
     } catch (err) {
       // Log the full error chain before BullMQ serializes it
-      console.error(`[worker] Failed to mark job ${dbJobId} as running: ${fullError(err)}`)
+      console.error(
+        `[worker] Failed to mark job ${dbJobId} as running: ${fullError(err)}`,
+      )
       // Don't abort — status tracking is secondary to the analysis itself
     }
 
@@ -53,18 +51,25 @@ const worker = new Worker(
       let version: string
       let sizeData: Awaited<ReturnType<typeof analyzeNpmPackage>>['sizeData']
       let depTree: Awaited<ReturnType<typeof analyzeNpmPackage>>['depTree']
-      let vulnerabilities: Awaited<ReturnType<typeof analyzeNpmPackage>>['vulnerabilities']
-      let maintenanceData: Awaited<ReturnType<typeof analyzeNpmPackage>>['maintenanceData']
+      let vulnerabilities: Awaited<
+        ReturnType<typeof analyzeNpmPackage>
+      >['vulnerabilities']
+      let maintenanceData: Awaited<
+        ReturnType<typeof analyzeNpmPackage>
+      >['maintenanceData']
 
       if (ecosystem === 'npm') {
         const result = await analyzeNpmPackage(name)
-        ;({ version, sizeData, depTree, vulnerabilities, maintenanceData } = result)
+        ;({ version, sizeData, depTree, vulnerabilities, maintenanceData } =
+          result)
       } else if (ecosystem === 'pypi') {
         const result = await analyzePypiPackage(name)
-        ;({ version, sizeData, depTree, vulnerabilities, maintenanceData } = result)
+        ;({ version, sizeData, depTree, vulnerabilities, maintenanceData } =
+          result)
       } else {
         const result = await analyzeMavenPackage(name)
-        ;({ version, sizeData, depTree, vulnerabilities, maintenanceData } = result)
+        ;({ version, sizeData, depTree, vulnerabilities, maintenanceData } =
+          result)
       }
 
       const scoreData = await computeScoreData(
@@ -97,7 +102,9 @@ const worker = new Worker(
         .set({ status: 'complete', updatedAt: new Date() })
         .where(eq(analysisJobs.id, dbJobId))
         .catch((err) => {
-          console.error(`[worker] Failed to mark job ${dbJobId} as complete: ${fullError(err)}`)
+          console.error(
+            `[worker] Failed to mark job ${dbJobId} as complete: ${fullError(err)}`,
+          )
         })
 
       console.log(`[worker] ✓ ${ecosystem}/${name}@${version}`)
@@ -114,7 +121,9 @@ const worker = new Worker(
         })
         .where(eq(analysisJobs.id, dbJobId))
         .catch((updateErr) => {
-          console.error(`[worker] Failed to mark job ${dbJobId} as failed: ${fullError(updateErr)}`)
+          console.error(
+            `[worker] Failed to mark job ${dbJobId} as failed: ${fullError(updateErr)}`,
+          )
         })
 
       throw err
@@ -137,5 +146,7 @@ worker.on('ready', () => {
 })
 
 worker.on('failed', (job, err) => {
-  console.error(`[worker] Job ${job?.id} failed after all retries: ${fullError(err)}`)
+  console.error(
+    `[worker] Job ${job?.id} failed after all retries: ${fullError(err)}`,
+  )
 })

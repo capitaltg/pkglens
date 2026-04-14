@@ -1,4 +1,9 @@
-import type { ScoreData, Vulnerability, MaintenanceData, SizeData } from '#/db/schema'
+import type {
+  ScoreData,
+  Vulnerability,
+  MaintenanceData,
+  SizeData,
+} from '#/db/schema'
 import { scoreSecurity } from './security'
 import { scoreMaintenance } from './maintenance'
 import { scoreSizeHeuristic, scoreSizePercentile } from './size'
@@ -29,9 +34,7 @@ export async function computeScoreData(
     const percentile = await scoreSizePercentile(ecosystem, sizeData.gzipBytes)
     // Heuristic wins if DB has no baseline (returns 50 as sentinel)
     sizeScore =
-      percentile === 50
-        ? scoreSizeHeuristic(sizeData.gzipBytes)
-        : percentile
+      percentile === 50 ? scoreSizeHeuristic(sizeData.gzipBytes) : percentile
   } catch {
     sizeScore = scoreSizeHeuristic(sizeData.gzipBytes)
   }

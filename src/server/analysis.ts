@@ -50,12 +50,7 @@ export const getPackageAnalysis = createServerFn({ method: 'GET' })
       .select()
       .from(analysisResults)
       .innerJoin(packages, eq(analysisResults.packageId, packages.id))
-      .where(
-        and(
-          eq(packages.ecosystem, ecosystem),
-          eq(packages.name, name),
-        ),
-      )
+      .where(and(eq(packages.ecosystem, ecosystem), eq(packages.name, name)))
       .orderBy(desc(analysisResults.createdAt))
       .limit(1)
 

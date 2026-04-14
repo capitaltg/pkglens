@@ -34,7 +34,9 @@ export async function analyzeNpmPackage(
 
   const distTags = meta['dist-tags'] as Record<string, string> | undefined
   const version: string = distTags?.latest ?? 'unknown'
-  const versions = meta.versions as Record<string, Record<string, unknown>> | undefined
+  const versions = meta.versions as
+    | Record<string, Record<string, unknown>>
+    | undefined
   const versionMeta: Record<string, unknown> = versions?.[version] ?? {}
   const timeMap = meta.time as Record<string, string> | undefined
   const licenseField = meta.license as string | { type?: string } | undefined
@@ -48,9 +50,7 @@ export async function analyzeNpmPackage(
     repositoryUrl: extractRepoUrl(meta.repository),
     description: meta.description as string | undefined,
     license:
-      typeof licenseField === 'string'
-        ? licenseField
-        : licenseField?.type,
+      typeof licenseField === 'string' ? licenseField : licenseField?.type,
     homepage: meta.homepage as string | undefined,
     keywords: meta.keywords as string[] | undefined,
   }
@@ -195,15 +195,11 @@ async function bundlePackage(
 async function gzipSize(buf: Buffer): Promise<number> {
   const chunks: Buffer[] = []
   const gzip = createGzip({ level: 9 })
-  await pipeline(
-    Readable.from(buf),
-    gzip,
-    async function* (source) {
-      for await (const chunk of source) {
-        chunks.push(Buffer.from(chunk))
-      }
-    },
-  )
+  await pipeline(Readable.from(buf), gzip, async function* (source) {
+    for await (const chunk of source) {
+      chunks.push(Buffer.from(chunk))
+    }
+  })
   return Buffer.concat(chunks).length
 }
 
@@ -238,16 +234,18 @@ async function buildDepTree(
 
       try {
         const meta = await fetchVersionMeta(depName, 'latest')
-        const resolvedVersion =
-          (meta.version as string | undefined) ?? depRange
-        const transitiveDeps = (meta.dependencies as Record<string, string>) ?? {}
+        const resolvedVersion = (meta.version as string | undefined) ?? depRange
+        const transitiveDeps =
+          (meta.dependencies as Record<string, string>) ?? {}
         const depPeerDeps = Object.keys(
           (meta.peerDependencies as Record<string, string> | undefined) ?? {},
         )
 
-        const sizeData = await bundlePackage(depName, resolvedVersion, depPeerDeps).catch(
-          () => ({ minifiedBytes: 0, gzipBytes: 0 }),
-        )
+        const sizeData = await bundlePackage(
+          depName,
+          resolvedVersion,
+          depPeerDeps,
+        ).catch(() => ({ minifiedBytes: 0, gzipBytes: 0 }))
         const children = await buildDepTree(
           depName,
           resolvedVersion,
@@ -286,9 +284,7 @@ async function buildDepTree(
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
-function extractRepoUrl(
-  repo: unknown,
-): string | undefined {
+function extractRepoUrl(repo: unknown): string | undefined {
   if (typeof repo === 'string') return repo
   if (repo && typeof repo === 'object' && 'url' in repo) {
     return (repo as { url?: string }).url

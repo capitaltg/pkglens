@@ -27,6 +27,7 @@ npm run worker       # Start BullMQ worker (analysis jobs)
 ```
 
 Run a single test file:
+
 ```bash
 npx vitest run src/lib/scoring/composite.test.ts
 ```
@@ -71,13 +72,13 @@ worker/
 
 ## Key external APIs
 
-| Purpose | URL |
-|---|---|
-| npm registry | `https://registry.npmjs.org/{name}` |
-| npm downloads | `https://api.npmjs.org/downloads/point/last-week/{name}` |
-| OSV vulnerabilities | `https://api.osv.dev/v1/query` |
-| PyPI metadata | `https://pypi.org/pypi/{name}/json` |
-| Maven Central search | `https://search.maven.org/solrsearch/select` |
+| Purpose              | URL                                                      |
+| -------------------- | -------------------------------------------------------- |
+| npm registry         | `https://registry.npmjs.org/{name}`                      |
+| npm downloads        | `https://api.npmjs.org/downloads/point/last-week/{name}` |
+| OSV vulnerabilities  | `https://api.osv.dev/v1/query`                           |
+| PyPI metadata        | `https://pypi.org/pypi/{name}/json`                      |
+| Maven Central search | `https://search.maven.org/solrsearch/select`             |
 
 ## Environment variables
 

@@ -6,6 +6,8 @@ commit-msg:
 pre-commit:
   parallel: true
   commands:
+    format:
+      run: npx prettier --write . && git add -A
     lint:
       run: npx oxlint .
     test:

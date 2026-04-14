@@ -23,9 +23,7 @@ interface OsvVuln {
   database_specific?: { severity?: string }
 }
 
-function parseSeverity(
-  vuln: OsvVuln,
-): Vulnerability['severity'] {
+function parseSeverity(vuln: OsvVuln): Vulnerability['severity'] {
   const raw =
     vuln.database_specific?.severity?.toLowerCase() ??
     vuln.severity?.[0]?.type?.toLowerCase() ??

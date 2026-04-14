@@ -58,14 +58,16 @@ function makeMaintenanceData(
 
 describe('scoreMaintenance', () => {
   it('returns 0 for deprecated packages', () => {
-    expect(
-      scoreMaintenance(makeMaintenanceData({ isDeprecated: true })),
-    ).toBe(0)
+    expect(scoreMaintenance(makeMaintenanceData({ isDeprecated: true }))).toBe(
+      0,
+    )
   })
 
   it('returns 100 for very recently published', () => {
     expect(
-      scoreMaintenance(makeMaintenanceData({ lastPublishedAt: new Date().toISOString() })),
+      scoreMaintenance(
+        makeMaintenanceData({ lastPublishedAt: new Date().toISOString() }),
+      ),
     ).toBe(100)
   })
 
@@ -80,7 +82,9 @@ describe('scoreMaintenance', () => {
   it('returns 0 for very old packages', () => {
     const veryOld = new Date('2015-01-01')
     expect(
-      scoreMaintenance(makeMaintenanceData({ lastPublishedAt: veryOld.toISOString() })),
+      scoreMaintenance(
+        makeMaintenanceData({ lastPublishedAt: veryOld.toISOString() }),
+      ),
     ).toBe(0)
   })
 })
