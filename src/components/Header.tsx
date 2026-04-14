@@ -3,91 +3,77 @@ import ThemeToggle from './ThemeToggle'
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--header-bg)] px-4 backdrop-blur-lg">
-      <nav className="page-wrap flex flex-wrap items-center gap-x-3 gap-y-2 py-3 sm:py-4">
-        <h2 className="m-0 flex-shrink-0 text-base font-semibold tracking-tight">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--chip-line)] bg-[var(--chip-bg)] px-3 py-1.5 text-sm text-[var(--sea-ink)] no-underline shadow-[0_8px_24px_rgba(30,90,72,0.08)] sm:px-4 sm:py-2"
+    <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--header-bg)] px-4 backdrop-blur-sm">
+      <nav
+        aria-label="Main navigation"
+        className="page-wrap flex items-center gap-4 py-3 sm:py-3.5"
+      >
+        {/* Wordmark */}
+        <Link
+          to="/"
+          aria-label="DepLens home"
+          className="flex items-center gap-2 no-underline"
+        >
+          <svg
+            viewBox="0 0 20 20"
+            aria-hidden="true"
+            width="20"
+            height="20"
+            className="flex-shrink-0"
           >
-            <svg
-              viewBox="0 0 16 16"
-              aria-hidden="true"
-              width="14"
-              height="14"
-              className="text-[var(--lagoon-deep)]"
-            >
-              <circle
-                cx="8"
-                cy="8"
-                r="6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <circle cx="8" cy="8" r="2.5" fill="currentColor" />
-              <line
-                x1="8"
-                y1="2"
-                x2="8"
-                y2="4"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-              <line
-                x1="8"
-                y1="12"
-                x2="8"
-                y2="14"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-              <line
-                x1="2"
-                y1="8"
-                x2="4"
-                y2="8"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-              <line
-                x1="12"
-                y1="8"
-                x2="14"
-                y2="8"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
+            <circle
+              cx="10"
+              cy="10"
+              r="7.5"
+              fill="none"
+              stroke="var(--lagoon-deep)"
+              strokeWidth="1.75"
+            />
+            <circle cx="10" cy="10" r="3" fill="var(--lagoon-deep)" />
+            <line
+              x1="10"
+              y1="2.5"
+              x2="10"
+              y2="5"
+              stroke="var(--lagoon-deep)"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
+            <line
+              x1="10"
+              y1="15"
+              x2="10"
+              y2="17.5"
+              stroke="var(--lagoon-deep)"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
+            <line
+              x1="2.5"
+              y1="10"
+              x2="5"
+              y2="10"
+              stroke="var(--lagoon-deep)"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
+            <line
+              x1="15"
+              y1="10"
+              x2="17.5"
+              y2="10"
+              stroke="var(--lagoon-deep)"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="text-sm font-extrabold tracking-tight text-[var(--sea-ink)]">
             DepLens
-          </Link>
-        </h2>
+          </span>
+        </Link>
 
-        <div className="ml-auto flex items-center gap-1.5 sm:ml-0 sm:gap-2">
-          <a
-            href="https://github.com/capitaltg/pkglens"
-            target="_blank"
-            rel="noreferrer"
-            className="hidden rounded-xl p-2 text-[var(--sea-ink-soft)] transition hover:bg-[var(--link-bg-hover)] hover:text-[var(--sea-ink)] sm:block"
-            title="DepLens on GitHub"
-          >
-            <span className="sr-only">DepLens on GitHub</span>
-            <svg viewBox="0 0 16 16" aria-hidden="true" width="22" height="22">
-              <path
-                fill="currentColor"
-                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
-              />
-            </svg>
-          </a>
-
-          <ThemeToggle />
-        </div>
-
-        <div className="order-3 flex w-full flex-wrap items-center gap-x-4 gap-y-1 pb-1 text-sm font-semibold sm:order-2 sm:w-auto sm:flex-nowrap sm:pb-0">
+        {/* Nav links */}
+        <div className="flex items-center gap-5 text-sm font-semibold">
           <Link
             to="/"
             className="nav-link"
@@ -95,6 +81,28 @@ export default function Header() {
           >
             Search
           </Link>
+        </div>
+
+        {/* Right side */}
+        <div className="ml-auto flex items-center gap-1">
+          <a
+            href="https://github.com/capitaltg/pkglens"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="DepLens on GitHub (opens in new tab)"
+            className="rounded-lg p-2 text-[var(--sea-ink-soft)] hover:bg-[var(--link-bg-hover)] hover:text-[var(--sea-ink)]"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              aria-hidden="true"
+              width="18"
+              height="18"
+              fill="currentColor"
+            >
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+            </svg>
+          </a>
+          <ThemeToggle />
         </div>
       </nav>
     </header>

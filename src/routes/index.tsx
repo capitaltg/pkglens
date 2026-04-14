@@ -145,7 +145,7 @@ function HomePage() {
   return (
     <main className="page-wrap px-4 pb-16 pt-14">
       {/* Hero */}
-      <section className="island-shell rise-in relative overflow-hidden rounded-[2rem] px-6 py-12 text-center sm:px-10 sm:py-16">
+      <section className="rise-in px-2 py-16 text-center sm:py-24">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -left-20 -top-24 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(79,184,178,0.32),transparent_66%)]"
@@ -155,13 +155,15 @@ function HomePage() {
           className="pointer-events-none absolute -bottom-20 -right-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(47,106,74,0.18),transparent_66%)]"
         />
 
-        <p className="island-kicker mb-3">
+        <p className="island-kicker mb-5">
           Analyze the true cost of any dependency
         </p>
-        <h1 className="display-title mb-4 text-4xl font-bold leading-[1.05] tracking-tight text-[var(--sea-ink)] sm:text-5xl">
-          DepLens
+        <h1 className="mb-5 text-5xl font-black leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
+          <span className="bg-gradient-to-br from-[#4f46e5] via-[#7c3aed] to-[#6366f1] bg-clip-text text-transparent">
+            DepLens
+          </span>
         </h1>
-        <p className="mx-auto mb-10 max-w-xl text-base text-[var(--sea-ink-soft)] sm:text-lg">
+        <p className="mx-auto mb-10 max-w-lg text-base text-[var(--sea-ink-soft)] sm:text-lg">
           Bundle size, security vulnerabilities, maintenance health, and
           dependency attribution — across npm, PyPI, and Maven.
         </p>
@@ -177,7 +179,7 @@ function HomePage() {
           <div
             role="group"
             aria-label="Ecosystem"
-            className="flex rounded-2xl border border-[var(--line)] bg-[var(--surface-strong)] p-1 sm:flex-shrink-0"
+            className="flex rounded-xl border border-[var(--line)] bg-[var(--surface)] p-1 shadow-sm sm:flex-shrink-0"
           >
             {ECOSYSTEMS.map((e) => (
               <button
@@ -186,7 +188,7 @@ function HomePage() {
                 aria-pressed={ecosystem === e.id}
                 aria-label={`Search in ${e.label}`}
                 onClick={() => setEcosystem(e.id)}
-                className={`rounded-xl px-3 py-1.5 text-sm font-semibold transition ${
+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                   ecosystem === e.id
                     ? 'bg-[var(--lagoon-deep)] text-white shadow-sm'
                     : 'text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)]'
@@ -219,7 +221,7 @@ function HomePage() {
                 placeholder={PLACEHOLDERS[ecosystem]}
                 autoFocus
                 autoComplete="off"
-                className="w-full rounded-2xl border border-[var(--line)] bg-[var(--surface-strong)] px-4 py-2.5 pr-9 text-sm text-[var(--sea-ink)] outline-none placeholder:text-[var(--sea-ink-soft)] focus:border-[var(--lagoon-deep)] focus:ring-2 focus:ring-[var(--lagoon-deep)]/20"
+                className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 pr-9 text-sm text-[var(--sea-ink)] shadow-sm outline-none placeholder:text-[var(--sea-ink-soft)] focus:border-[var(--lagoon-deep)] focus:ring-2 focus:ring-[var(--lagoon-deep)]/20"
               />
               {isSearching && (
                 <span
@@ -310,7 +312,7 @@ function HomePage() {
           <button
             type="submit"
             disabled={!query.trim()}
-            className="rounded-2xl bg-[var(--lagoon-deep)] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:opacity-90 disabled:translate-y-0 disabled:opacity-40"
+            className="rounded-xl bg-[var(--lagoon-deep)] px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:opacity-90 active:scale-[0.98] disabled:opacity-40"
           >
             Analyze
           </button>
@@ -320,35 +322,44 @@ function HomePage() {
       {/* Feature grid */}
       <section
         aria-label="Features"
-        className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         {[
           {
+            icon: '⚖️',
             title: 'True bundle cost',
             desc: 'Actual gzip size after bundling, not just the npm tarball. Includes transitive dependencies.',
           },
           {
+            icon: '🌳',
             title: 'Dependency attribution',
             desc: 'See exactly which dependency in the tree is responsible for the most weight.',
           },
           {
+            icon: '🔒',
             title: 'Security analysis',
             desc: 'CVE lookups via the OSV database across all three ecosystems.',
           },
           {
+            icon: '⭐',
             title: 'Health score',
             desc: 'Composite A–F grade combining size, security, and maintenance freshness.',
           },
-        ].map(({ title, desc }, i) => (
+        ].map(({ icon, title, desc }, i) => (
           <article
             key={title}
-            className="island-shell feature-card rise-in rounded-2xl p-5"
-            style={{ animationDelay: `${i * 90 + 80}ms` }}
+            className="island-shell feature-card rise-in rounded-xl p-5"
+            style={{ animationDelay: `${i * 70 + 60}ms` }}
           >
-            <h2 className="mb-2 text-base font-semibold text-[var(--sea-ink)]">
+            <span aria-hidden="true" className="mb-3 block text-2xl">
+              {icon}
+            </span>
+            <h2 className="mb-1.5 text-sm font-bold text-[var(--sea-ink)]">
               {title}
             </h2>
-            <p className="m-0 text-sm text-[var(--sea-ink-soft)]">{desc}</p>
+            <p className="m-0 text-sm leading-relaxed text-[var(--sea-ink-soft)]">
+              {desc}
+            </p>
           </article>
         ))}
       </section>

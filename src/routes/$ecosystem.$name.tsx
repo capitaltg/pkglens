@@ -42,7 +42,7 @@ function SectionCard({
   return (
     <section
       aria-labelledby={id}
-      className="island-shell rounded-2xl p-5 sm:p-6"
+      className="island-shell rounded-xl p-5 sm:p-6"
     >
       <h2
         id={id}
@@ -97,7 +97,7 @@ function PendingState({ jobId }: { jobId: number }) {
       role="status"
       aria-live="polite"
       aria-label="Analyzing package"
-      className="island-shell rounded-2xl p-8 text-center"
+      className="island-shell rounded-xl p-8 text-center"
     >
       <div
         aria-hidden="true"
@@ -172,7 +172,7 @@ function PackageDetailPage() {
       {/* Page header */}
       <header className="rise-in mb-6">
         <p className="island-kicker mb-1">{ecosystemLabel}</p>
-        <h1 className="display-title text-3xl font-bold text-[var(--sea-ink)] sm:text-4xl">
+        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--sea-ink)] sm:text-4xl">
           {name}
         </h1>
         {initial.data?.maintenanceData.description && (
