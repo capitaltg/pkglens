@@ -27,12 +27,17 @@ export const searchRegistry = createServerFn({ method: 'GET' })
   })
 
 async function searchNpm(query: string): Promise<RegistryResult[]> {
-  const url = `https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(query)}&size=20`
+  const q = query.toLowerCase()
+
+  // npms.io returns far better prefix/fuzzy matches than the npm registry FTS.
+  // e.g. "lodas" → npm FTS never returns "lodash"; npms.io returns it at rank ~13.
+  // Request more candidates so the name filter has enough to work with.
+  const url = `https://api.npms.io/v2/search?q=${encodeURIComponent(query)}&size=25`
   const res = await fetch(url, { signal: AbortSignal.timeout(5_000) })
   if (!res.ok) return []
 
   const data = (await res.json()) as {
-    objects: Array<{
+    results: Array<{
       package: {
         name: string
         description?: string
@@ -41,15 +46,26 @@ async function searchNpm(query: string): Promise<RegistryResult[]> {
     }>
   }
 
-  const q = query.toLowerCase()
-  return data.objects
-    .filter(({ package: pkg }) => pkg.name.toLowerCase().includes(q))
-    .slice(0, 8)
-    .map(({ package: pkg }) => ({
-      name: pkg.name,
-      description: pkg.description ?? '',
-      version: pkg.version,
-    }))
+  const filtered = data.results.filter(({ package: pkg }) =>
+    pkg.name.toLowerCase().includes(q),
+  )
+
+  // Rank: exact match → starts-with → contains-elsewhere.
+  // Within each tier, shorter names first (e.g. "lodash" before "lodash.merge").
+  filtered.sort((a, b) => {
+    const an = a.package.name.toLowerCase()
+    const bn = b.package.name.toLowerCase()
+    const aRank = an === q ? 0 : an.startsWith(q) ? 1 : 2
+    const bRank = bn === q ? 0 : bn.startsWith(q) ? 1 : 2
+    if (aRank !== bRank) return aRank - bRank
+    return an.length - bn.length
+  })
+
+  return filtered.slice(0, 8).map(({ package: pkg }) => ({
+    name: pkg.name,
+    description: pkg.description ?? '',
+    version: pkg.version,
+  }))
 }
 
 // ── PyPI simple index cache ───────────────────────────────────────────────────
