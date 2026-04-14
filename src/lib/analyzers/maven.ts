@@ -111,7 +111,9 @@ async function fetchPomDeps(
     if (!res.ok) return []
 
     const xml = await res.text()
-    return parsePomDeps(xml)
+    const deps = parsePomDeps(xml)
+    // Enrich deps with JAR sizes in parallel
+    return Promise.all(deps.map(enrichDepWithSize))
   } catch {
     return []
   }
@@ -129,9 +131,14 @@ function parsePomDeps(xml: string): DepNode[] {
     // Skip test/provided scope deps
     if (scope === 'test' || scope === 'provided') continue
 
+    const rawVersion = ver?.trim()
+    // Treat Maven property references (${...}) as unknown — they need BOM resolution
+    const resolvedVersion =
+      !rawVersion || rawVersion.startsWith('${') ? 'unknown' : rawVersion
+
     deps.push({
       name: `${gId.trim()}:${aId.trim()}`,
-      version: ver?.trim() ?? 'unknown',
+      version: resolvedVersion,
       ecosystem: 'maven',
       selfBytes: 0,
       totalBytes: 0,
@@ -140,6 +147,52 @@ function parsePomDeps(xml: string): DepNode[] {
   }
 
   return deps
+}
+
+async function enrichDepWithSize(dep: DepNode): Promise<DepNode> {
+  try {
+    const [gId, aId] = dep.name.split(':')
+    let version = dep.version
+
+    // If version is unknown (BOM-managed), look it up via Maven Central
+    if (version === 'unknown') {
+      version = await resolveLatestVersion(gId, aId)
+    }
+    if (version === 'unknown') return dep
+
+    const jarUrl = buildJarUrl(gId, aId, version)
+    const res = await fetch(jarUrl, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(8_000),
+    })
+    if (!res.ok) return { ...dep, version }
+
+    const contentLength = res.headers.get('content-length')
+    const jarBytes = contentLength ? parseInt(contentLength, 10) : 0
+
+    return { ...dep, version, selfBytes: jarBytes, totalBytes: jarBytes }
+  } catch {
+    return dep
+  }
+}
+
+async function resolveLatestVersion(
+  groupId: string,
+  artifactId: string,
+): Promise<string> {
+  try {
+    const q = encodeURIComponent(`g:${groupId} AND a:${artifactId}`)
+    const url = `${MAVEN_SEARCH}?q=${q}&core=gav&rows=1&wt=json`
+    const res = await fetch(url, { signal: AbortSignal.timeout(5_000) })
+    if (!res.ok) return 'unknown'
+    const data = (await res.json()) as {
+      response?: { docs?: Array<{ latestVersion?: string; v?: string }> }
+    }
+    const doc = data.response?.docs?.[0]
+    return doc?.latestVersion ?? doc?.v ?? 'unknown'
+  } catch {
+    return 'unknown'
+  }
 }
 
 function splitMavenName(name: string): [string, string] {

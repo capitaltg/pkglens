@@ -53,7 +53,20 @@ async function searchNpm(query: string): Promise<RegistryResult[]> {
 }
 
 async function searchMaven(query: string): Promise<RegistryResult[]> {
-  const url = `https://search.maven.org/solrsearch/select?q=${encodeURIComponent(query)}&rows=8&wt=json`
+  // Solr interprets bare colons as field:value syntax, which breaks groupId:artifactId queries.
+  // When the query contains a colon, use explicit g: and a: field selectors instead.
+  let solrQuery: string
+  if (query.includes(':')) {
+    const colonIdx = query.indexOf(':')
+    const groupId = query.slice(0, colonIdx)
+    const artifactId = query.slice(colonIdx + 1)
+    solrQuery = artifactId
+      ? `g:${groupId} AND a:${artifactId}*`
+      : `g:${groupId}`
+  } else {
+    solrQuery = query
+  }
+  const url = `https://search.maven.org/solrsearch/select?q=${encodeURIComponent(solrQuery)}&rows=8&wt=json`
   const res = await fetch(url, { signal: AbortSignal.timeout(5_000) })
   if (!res.ok) return []
 

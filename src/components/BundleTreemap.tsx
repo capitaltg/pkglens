@@ -166,7 +166,7 @@ export function BundleTreemap({ nodes }: BundleTreemapProps) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-strong)]"
+      className="relative w-full overflow-hidden rounded-xl bg-[var(--surface-strong)]"
       style={{ aspectRatio: '2 / 1' }}
       onMouseLeave={() => setTooltip(null)}
     >

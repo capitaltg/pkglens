@@ -164,7 +164,7 @@ function DepNodeRow({
         {/* Size bar + percentage */}
         <div
           aria-hidden="true"
-          className="hidden w-20 flex-shrink-0 flex-col items-center gap-0.5 sm:flex"
+          className="hidden w-20 flex-shrink-0 flex-col items-center gap-0.5 sm:flex ml-4"
         >
           <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-[var(--line)]">
             <div
@@ -186,7 +186,7 @@ function DepNodeRow({
         <span
           aria-hidden="true"
           className={cn(
-            'w-14 flex-shrink-0 text-right font-mono text-xs tabular-nums',
+            'w-20 flex-shrink-0 text-right font-mono text-xs tabular-nums',
             labelColor(pct),
           )}
         >
@@ -244,10 +244,10 @@ export function DepTree({
         <span className="w-3 flex-shrink-0" />
         <span className="flex-1">Package</span>
         <span className="flex-shrink-0">Version</span>
-        <span className="hidden w-20 flex-shrink-0 text-center sm:block">
+        <span className="hidden w-20 flex-shrink-0 text-center sm:block ml-4">
           Share
         </span>
-        <span className="w-14 text-right">Size</span>
+        <span className="w-20 text-right">Size</span>
       </div>
 
       <ul

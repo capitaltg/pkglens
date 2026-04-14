@@ -71,7 +71,13 @@ function SectionCard({
   )
 }
 
-function PendingState({ jobId }: { jobId: number }) {
+function PendingState({
+  jobId,
+  ecosystem,
+}: {
+  jobId: number
+  ecosystem: string
+}) {
   const [status, setStatus] = useState<AnalysisResponse | null>(null)
 
   useEffect(() => {
@@ -94,7 +100,7 @@ function PendingState({ jobId }: { jobId: number }) {
   }, [jobId])
 
   if (status?.status === 'complete' && status.data) {
-    return <AnalysisResult data={status.data} />
+    return <AnalysisResult data={status.data} ecosystem={ecosystem} />
   }
 
   if (status?.status === 'failed') {
@@ -131,8 +137,10 @@ function PendingState({ jobId }: { jobId: number }) {
 
 function AnalysisResult({
   data,
+  ecosystem,
 }: {
   data: NonNullable<AnalysisResponse['data']>
+  ecosystem: string
 }) {
   const totalBytes = data.depTree.reduce((s, n) => s + n.totalBytes, 0)
   const directCount = data.depTree.length
@@ -175,10 +183,12 @@ function AnalysisResult({
         </SectionCard>
       </div>
 
-      {/* Bundle map */}
-      <SectionCard title="Bundle Map">
-        <BundleTreemap nodes={data.depTree} />
-      </SectionCard>
+      {/* Bundle map — npm only */}
+      {ecosystem === 'npm' && (
+        <SectionCard title="Bundle Map">
+          <BundleTreemap nodes={data.depTree} />
+        </SectionCard>
+      )}
 
       {/* Dependency tree */}
       <SectionCard
@@ -253,9 +263,9 @@ function PackageDetailPage() {
 
       {/* Content */}
       {initial.status === 'complete' && initial.data ? (
-        <AnalysisResult data={initial.data} />
+        <AnalysisResult data={initial.data} ecosystem={ecosystem} />
       ) : initial.status === 'pending' || initial.status === 'running' ? (
-        <PendingState jobId={initial.jobId!} />
+        <PendingState jobId={initial.jobId!} ecosystem={ecosystem} />
       ) : initial.status === 'failed' ? (
         <div
           role="alert"
