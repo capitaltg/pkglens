@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { MaintenanceData } from '#/db/schema'
 
 interface MaintenancePanelProps {
@@ -20,6 +21,27 @@ function timeAgo(iso: string): string {
   if (months < 12) return `${months} month${months > 1 ? 's' : ''} ago`
   const years = Math.floor(days / 365)
   return `${years} year${years > 1 ? 's' : ''} ago`
+}
+
+function ExpandableText({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const isLong = text.length > 80
+
+  if (!isLong) return <span>{text}</span>
+
+  return (
+    <span>
+      <span className={expanded ? '' : 'line-clamp-2'}>{text}</span>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="mt-0.5 block text-xs font-medium text-[var(--lagoon-deep)] hover:underline"
+        aria-expanded={expanded}
+      >
+        {expanded ? 'Show less' : 'Show more'}
+      </button>
+    </span>
+  )
 }
 
 interface StatProps {
@@ -58,7 +80,12 @@ export function MaintenancePanel({ data }: MaintenancePanelProps) {
             value={formatDownloads(data.weeklyDownloads)}
           />
         )}
-        {data.license && <Stat label="License" value={data.license} />}
+        {data.license && (
+          <Stat
+            label="License"
+            value={<ExpandableText text={data.license} />}
+          />
+        )}
       </dl>
 
       {data.description && (

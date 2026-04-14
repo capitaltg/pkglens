@@ -18,8 +18,8 @@ export const searchRegistry = createServerFn({ method: 'GET' })
 
     try {
       if (ecosystem === 'npm') return await searchNpm(query)
+      if (ecosystem === 'pypi') return await searchPypi(query)
       if (ecosystem === 'maven') return await searchMaven(query)
-      // PyPI has no usable search API — degrade gracefully
       return []
     } catch {
       return []
@@ -50,6 +50,95 @@ async function searchNpm(query: string): Promise<RegistryResult[]> {
       description: pkg.description ?? '',
       version: pkg.version,
     }))
+}
+
+// ── PyPI simple index cache ───────────────────────────────────────────────────
+// PyPI's search page blocks server-side requests. Instead we fetch the full
+// package name list from the simple index API (~500K names, ~10MB JSON) once,
+// cache it in memory for 24 h, and filter locally for instant prefix matching.
+
+let pypiIndexCache: string[] | null = null
+let pypiIndexFetchedAt = 0
+let pypiIndexInflight: Promise<string[]> | null = null
+const PYPI_INDEX_TTL = 24 * 3600_000
+
+function warmPypiIndex(): Promise<string[]> {
+  const now = Date.now()
+  if (pypiIndexCache && now - pypiIndexFetchedAt < PYPI_INDEX_TTL) {
+    return Promise.resolve(pypiIndexCache)
+  }
+  if (pypiIndexInflight) return pypiIndexInflight
+
+  pypiIndexInflight = (async () => {
+    try {
+      const res = await fetch('https://pypi.org/simple/', {
+        headers: { Accept: 'application/vnd.pypi.simple.v1+json' },
+        signal: AbortSignal.timeout(30_000),
+      })
+      if (!res.ok) return pypiIndexCache ?? []
+      const data = (await res.json()) as { projects: Array<{ name: string }> }
+      pypiIndexCache = data.projects.map((p) => p.name)
+      pypiIndexFetchedAt = Date.now()
+      return pypiIndexCache
+    } catch {
+      return pypiIndexCache ?? []
+    } finally {
+      pypiIndexInflight = null
+    }
+  })()
+
+  return pypiIndexInflight
+}
+
+async function searchPypi(query: string): Promise<RegistryResult[]> {
+  const q = query.toLowerCase().trim()
+
+  // If the index is already cached, filter it immediately
+  if (pypiIndexCache) {
+    const now = Date.now()
+    if (now - pypiIndexFetchedAt < PYPI_INDEX_TTL) {
+      // Prefix matches first, then substring matches to fill up to 8
+      const prefix = pypiIndexCache.filter((n) => n.toLowerCase().startsWith(q))
+      const extra =
+        prefix.length < 8
+          ? pypiIndexCache
+              .filter(
+                (n) =>
+                  !n.toLowerCase().startsWith(q) && n.toLowerCase().includes(q),
+              )
+              .slice(0, 8 - prefix.length)
+          : []
+      return [...prefix.slice(0, 8), ...extra].map((name) => ({
+        name,
+        version: '',
+        description: '',
+      }))
+    }
+  }
+
+  // Index not ready yet — kick off a background fetch and fall back to
+  // an exact-name lookup so the user gets at least one result immediately
+  warmPypiIndex()
+
+  try {
+    const res = await fetch(
+      `https://pypi.org/pypi/${encodeURIComponent(q)}/json`,
+      { signal: AbortSignal.timeout(5_000) },
+    )
+    if (!res.ok) return []
+    const data = (await res.json()) as {
+      info: { name: string; version: string; summary?: string }
+    }
+    return [
+      {
+        name: data.info.name,
+        version: data.info.version,
+        description: data.info.summary ?? '',
+      },
+    ]
+  } catch {
+    return []
+  }
 }
 
 async function searchMaven(query: string): Promise<RegistryResult[]> {

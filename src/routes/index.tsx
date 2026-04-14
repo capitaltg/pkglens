@@ -15,7 +15,7 @@ type Ecosystem = (typeof ECOSYSTEMS)[number]['id']
 
 const PLACEHOLDERS: Record<Ecosystem, string> = {
   npm: 'e.g. axios, lodash, react-query',
-  pypi: 'e.g. requests, pandas, fastapi',
+  pypi: 'e.g. pandas, requests, fastapi',
   maven: 'e.g. org.springframework:spring-core',
 }
 
@@ -310,6 +310,13 @@ function HomePage() {
             Analyze
           </button>
         </form>
+
+        {/* PyPI warming hint — shown until the index is ready on first load */}
+        {ecosystem === 'pypi' && (
+          <p className="mt-3 text-xs text-[var(--sea-ink-soft)]">
+            First search may take a moment while the PyPI package index loads.
+          </p>
+        )}
       </section>
 
       {/* Feature grid */}
