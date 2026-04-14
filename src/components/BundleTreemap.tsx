@@ -217,7 +217,6 @@ export function BundleTreemap({ nodes }: BundleTreemapProps) {
           const tw = tile.w - ROOT_GAP * 2
           const th = tile.h - ROOT_GAP * 2
           const showLabel = tw > 40 && th > 18
-          const canDrillIn = (tile.children ?? []).some((c) => c.totalBytes > 0)
 
           // Children are packed below the header band
           const innerX = tx + INNER_PAD

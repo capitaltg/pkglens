@@ -1,5 +1,10 @@
-import { queryOsv } from '#/lib/osv'
-import type { DepNode, MaintenanceData, SizeData } from '#/db/schema'
+import { queryOsvHistorical } from '#/lib/osv'
+import type {
+  DepNode,
+  MaintenanceData,
+  SizeData,
+  Vulnerability,
+} from '#/db/schema'
 
 const MAVEN_SEARCH = 'https://search.maven.org/solrsearch/select'
 const MAVEN_REPO = 'https://repo1.maven.org/maven2'
@@ -8,7 +13,7 @@ export interface MavenAnalysisResult {
   version: string
   sizeData: SizeData
   depTree: DepNode[]
-  vulnerabilities: Awaited<ReturnType<typeof queryOsv>>
+  vulnerabilities: Vulnerability[]
   maintenanceData: MaintenanceData
 }
 
@@ -28,11 +33,21 @@ export async function analyzeMavenPackage(
   const version: string = doc.latestVersion ?? doc.v ?? 'unknown'
   const jarUrl = buildJarUrl(groupId, artifactId, version)
 
-  const [sizeData, vulnerabilities, depTree] = await Promise.all([
+  const [sizeData, osvResults, depTree] = await Promise.all([
     measureJarSize(jarUrl),
-    queryOsv('maven', name, version),
+    queryOsvHistorical('maven', name, version),
     fetchPomDeps(groupId, artifactId, version),
   ])
+
+  const vulnerabilities: Vulnerability[] = osvResults.map((r) => ({
+    id: r.id,
+    summary: r.summary,
+    severity: r.severity,
+    aliases: r.aliases,
+    publishedAt: r.publishedAt,
+    isActive: r.isActive,
+    fixedAt: undefined, // Maven doesn't have a convenient fix-date API
+  }))
 
   const maintenanceData: MaintenanceData = {
     lastPublishedAt: doc.timestamp

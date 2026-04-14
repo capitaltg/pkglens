@@ -86,11 +86,24 @@ export interface DepNode {
 }
 
 export interface ScoreData {
-  composite: number // 0–100
+  composite: number // 0–100 (backend/server weighted composite for npm; only composite for others)
   grade: 'A' | 'B' | 'C' | 'D' | 'F'
   size: number // 0–100
   security: number // 0–100
   maintenance: number // 0–100
+  popularity: number // 0–100 (0 if unavailable)
+  depHealth: number // 0–100
+  typescript?: number // 0–100 (npm only)
+  securityDetail: {
+    activeCves: number
+    historicalCveCount: number
+    medianPatchDays?: number
+  }
+  frontend?: {
+    // npm only: frontend-weighted composite
+    composite: number
+    grade: 'A' | 'B' | 'C' | 'D' | 'F'
+  }
 }
 
 export interface Vulnerability {
@@ -99,6 +112,8 @@ export interface Vulnerability {
   severity: 'critical' | 'high' | 'medium' | 'low' | 'unknown'
   aliases: string[]
   publishedAt?: string
+  isActive?: boolean // true = current version still affected; undefined = unknown (treated as active)
+  fixedAt?: string // ISO date when the first fixed version was released
 }
 
 export interface MaintenanceData {
@@ -111,4 +126,5 @@ export interface MaintenanceData {
   license?: string
   homepage?: string
   keywords?: string[]
+  typescriptSupport?: 'bundled' | 'definitely-typed' | 'none' // npm only
 }

@@ -6,8 +6,13 @@ import { promisify } from 'node:util'
 import { createGzip } from 'node:zlib'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { queryOsv } from '#/lib/osv'
-import type { DepNode, MaintenanceData, SizeData } from '#/db/schema'
+import { queryOsvHistorical } from '#/lib/osv'
+import type {
+  DepNode,
+  MaintenanceData,
+  SizeData,
+  Vulnerability,
+} from '#/db/schema'
 
 const execFileAsync = promisify(execFile)
 
@@ -20,7 +25,7 @@ export interface NpmAnalysisResult {
   version: string
   sizeData: SizeData
   depTree: DepNode[]
-  vulnerabilities: Awaited<ReturnType<typeof queryOsv>>
+  vulnerabilities: Vulnerability[]
   maintenanceData: MaintenanceData
 }
 
@@ -41,6 +46,8 @@ export async function analyzeNpmPackage(
   const timeMap = meta.time as Record<string, string> | undefined
   const licenseField = meta.license as string | { type?: string } | undefined
 
+  const typescriptSupport = await detectTypescriptSupport(name, versionMeta)
+
   const maintenanceData: MaintenanceData = {
     lastPublishedAt: timeMap?.[version] ?? new Date().toISOString(),
     weeklyDownloads: downloads,
@@ -53,6 +60,7 @@ export async function analyzeNpmPackage(
       typeof licenseField === 'string' ? licenseField : licenseField?.type,
     homepage: meta.homepage as string | undefined,
     keywords: meta.keywords as string[] | undefined,
+    typescriptSupport,
   }
 
   const directDeps: Record<string, string> =
@@ -61,11 +69,25 @@ export async function analyzeNpmPackage(
     (versionMeta.peerDependencies as Record<string, string> | undefined) ?? {},
   )
 
-  const [sizeData, depTree, vulnerabilities] = await Promise.all([
+  const [sizeData, depTree, osvResults] = await Promise.all([
     bundlePackage(name, version, peerDeps),
     buildDepTree(name, version, directDeps, new Set(), 0),
-    queryOsv('npm', name, version),
+    queryOsvHistorical('npm', name, version),
   ])
+
+  // Convert OSV results to Vulnerability, looking up fixedAt from the registry time map
+  const vulnerabilities: Vulnerability[] = osvResults.map((r) => ({
+    id: r.id,
+    summary: r.summary,
+    severity: r.severity,
+    aliases: r.aliases,
+    publishedAt: r.publishedAt,
+    isActive: r.isActive,
+    fixedAt:
+      r.fixedVersions.length > 0 && timeMap
+        ? findEarliestFixDate(r.fixedVersions, timeMap)
+        : undefined,
+  }))
 
   return { version, sizeData, depTree, vulnerabilities, maintenanceData }
 }
@@ -109,6 +131,47 @@ async function fetchWeeklyDownloads(name: string): Promise<number> {
   } catch {
     return 0
   }
+}
+
+// ─── TypeScript support detection ────────────────────────────────────────────
+
+async function detectTypescriptSupport(
+  name: string,
+  versionMeta: Record<string, unknown>,
+): Promise<MaintenanceData['typescriptSupport']> {
+  // Check for bundled types in package.json
+  if (versionMeta.types || versionMeta.typings) return 'bundled'
+
+  // Check for @types/* package on npm registry
+  try {
+    const typesSlug = name.startsWith('@')
+      ? name.slice(1).replace('/', '__')
+      : name
+    const encoded = `@${encodeURIComponent(`types/${typesSlug}`)}`
+    const res = await fetch(`${NPM_REGISTRY}/${encoded}`, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(5_000),
+    })
+    if (res.ok) return 'definitely-typed'
+  } catch {
+    // ignore — no @types package
+  }
+
+  return 'none'
+}
+
+// ─── Fix date lookup ──────────────────────────────────────────────────────────
+
+function findEarliestFixDate(
+  fixedVersions: string[],
+  timeMap: Record<string, string>,
+): string | undefined {
+  const dates = fixedVersions
+    .map((v) => timeMap[v])
+    .filter(Boolean)
+    .map((d) => new Date(d).getTime())
+  if (dates.length === 0) return undefined
+  return new Date(Math.min(...dates)).toISOString()
 }
 
 // ─── Bundle size via esbuild ─────────────────────────────────────────────────

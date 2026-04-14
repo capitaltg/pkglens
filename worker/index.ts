@@ -77,6 +77,7 @@ const worker = new Worker(
         sizeData,
         vulnerabilities,
         maintenanceData,
+        depTree,
       )
 
       const [pkg] = await db

@@ -43,10 +43,10 @@ export async function scoreSizePercentile(
  */
 export function scoreSizeHeuristic(gzipBytes: number): number {
   if (gzipBytes < 5_000) return 95
-  if (gzipBytes < 20_000) return 80
-  if (gzipBytes < 50_000) return 65
-  if (gzipBytes < 100_000) return 50
-  if (gzipBytes < 250_000) return 35
-  if (gzipBytes < 500_000) return 20
+  if (gzipBytes < 15_000) return 80
+  if (gzipBytes < 40_000) return 65
+  if (gzipBytes < 80_000) return 50
+  if (gzipBytes < 200_000) return 35
+  if (gzipBytes < 400_000) return 20
   return 5
 }

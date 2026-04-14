@@ -52,7 +52,7 @@ function SectionCard({
   return (
     <section
       aria-labelledby={id}
-      className="island-shell rounded-xl p-5 sm:p-6"
+      className="island-shell flex flex-col rounded-xl p-5 sm:p-6"
     >
       <div className="mb-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -173,7 +173,7 @@ function AnalysisResult({
 
         <SectionCard title="Bundle Size">
           <SizeMetrics sizeData={data.sizeData} />
-          <p className="mt-3 text-xs text-[var(--sea-ink-soft)]">
+          <p className="mt-auto pt-3 text-xs text-[var(--sea-ink-soft)]">
             Analyzed at{' '}
             {new Date(data.analyzedAt).toLocaleString(undefined, {
               dateStyle: 'medium',

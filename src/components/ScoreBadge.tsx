@@ -20,25 +20,74 @@ const sizeStyles = {
   lg: 'h-16 w-16 text-3xl',
 }
 
+function SingleBadge({
+  grade,
+  composite,
+  label,
+  size = 'md',
+}: {
+  grade: ScoreData['grade']
+  composite: number
+  label?: string
+  size?: 'sm' | 'md' | 'lg'
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      {label && (
+        <span className="text-xs font-semibold text-[var(--sea-ink-soft)]">
+          {label}
+        </span>
+      )}
+      <div
+        aria-hidden="true"
+        className={cn(
+          'flex items-center justify-center rounded-xl border-2 font-bold font-mono',
+          gradeStyles[grade],
+          sizeStyles[size],
+        )}
+      >
+        {grade}
+      </div>
+      <span aria-hidden="true" className="text-xs text-[var(--sea-ink-soft)]">
+        {composite}/100
+      </span>
+    </div>
+  )
+}
+
 export function ScoreBadge({ score, size = 'md' }: ScoreBadgeProps) {
+  if (score.frontend) {
+    return (
+      <div
+        className="flex gap-8"
+        aria-label={`Quality grades — Frontend: ${score.frontend.grade} (${score.frontend.composite}/100), Backend: ${score.grade} (${score.composite}/100)`}
+      >
+        <SingleBadge
+          grade={score.frontend.grade}
+          composite={score.frontend.composite}
+          label="Frontend"
+          size={size}
+        />
+        <SingleBadge
+          grade={score.grade}
+          composite={score.composite}
+          label="Backend"
+          size={size}
+        />
+      </div>
+    )
+  }
+
   return (
     <div
       className="flex flex-col items-center gap-1"
       aria-label={`Quality grade: ${score.grade}, composite score ${score.composite} out of 100`}
     >
-      <div
-        aria-hidden="true"
-        className={cn(
-          'flex items-center justify-center rounded-xl border-2 font-bold font-mono',
-          gradeStyles[score.grade],
-          sizeStyles[size],
-        )}
-      >
-        {score.grade}
-      </div>
-      <span aria-hidden="true" className="text-xs text-[var(--sea-ink-soft)]">
-        {score.composite}/100
-      </span>
+      <SingleBadge
+        grade={score.grade}
+        composite={score.composite}
+        size={size}
+      />
     </div>
   )
 }
@@ -54,12 +103,12 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
       : value >= 40
         ? 'bg-yellow-500'
         : 'bg-red-500'
-  const labelId = `score-label-${label.toLowerCase()}`
+  const labelId = `score-label-${label.toLowerCase().replace(/\s+/g, '-')}`
   return (
     <div className="flex items-center gap-3">
       <span
         id={labelId}
-        className="w-24 flex-shrink-0 text-right text-xs text-[var(--sea-ink-soft)]"
+        className="w-28 flex-shrink-0 text-right text-xs text-[var(--sea-ink-soft)]"
       >
         {label}
       </span>
@@ -89,11 +138,25 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
 }
 
 export function ScoreBreakdown({ score }: ScoreBreakdownProps) {
+  // Some fields may be absent on older cached records — guard before rendering
+  const popularity = (score as { popularity?: number }).popularity
+  const depHealth = (score as { depHealth?: number }).depHealth
+  const typescript = (score as { typescript?: number }).typescript
+
   return (
     <div className="space-y-2">
-      <ScoreBar label="Size" value={score.size} />
       <ScoreBar label="Security" value={score.security} />
       <ScoreBar label="Maintenance" value={score.maintenance} />
+      {popularity !== undefined && popularity > 0 && (
+        <ScoreBar label="Popularity" value={popularity} />
+      )}
+      <ScoreBar label="Size" value={score.size} />
+      {typescript !== undefined && (
+        <ScoreBar label="TypeScript" value={typescript} />
+      )}
+      {depHealth !== undefined && (
+        <ScoreBar label="Dep Health" value={depHealth} />
+      )}
     </div>
   )
 }

@@ -1,28 +1,38 @@
-import { queryOsv } from '#/lib/osv'
-import type { DepNode, MaintenanceData, SizeData } from '#/db/schema'
+import { queryOsvHistorical } from '#/lib/osv'
+import type {
+  DepNode,
+  MaintenanceData,
+  SizeData,
+  Vulnerability,
+} from '#/db/schema'
 
 const PYPI_API = 'https://pypi.org/pypi'
+const PYPISTATS_API = 'https://pypistats.org/api/packages'
 
 export interface PypiAnalysisResult {
   version: string
   sizeData: SizeData
   depTree: DepNode[]
-  vulnerabilities: Awaited<ReturnType<typeof queryOsv>>
+  vulnerabilities: Vulnerability[]
   maintenanceData: MaintenanceData
 }
 
 export async function analyzePypiPackage(
   name: string,
 ): Promise<PypiAnalysisResult> {
-  const meta = await fetchPypiMeta(name)
+  const [meta, weeklyDownloads] = await Promise.all([
+    fetchPypiMeta(name),
+    fetchPypiWeeklyDownloads(name),
+  ])
 
   const info = meta.info as Record<string, unknown>
   const version = (info.version as string) ?? 'unknown'
-  const releases = (meta.releases as Record<string, unknown[]>) ?? {}
+  const releases = (meta.releases as Record<string, PypiBuildFile[]>) ?? {}
   const urlList = (meta.urls as PypiBuildFile[]) ?? []
 
   const maintenanceData: MaintenanceData = {
     lastPublishedAt: extractLastPublished(releases, urlList),
+    weeklyDownloads,
     isDeprecated: typeof info.yanked === 'boolean' ? info.yanked : false,
     description: (info.summary as string) ?? undefined,
     license: (info.license as string) ?? undefined,
@@ -33,10 +43,24 @@ export async function analyzePypiPackage(
       (info.project_urls as Record<string, string> | undefined)?.Source,
   }
 
-  const [sizeData, vulnerabilities] = await Promise.all([
+  const [sizeData, osvResults] = await Promise.all([
     measureWheelSize(urlList),
-    queryOsv('pypi', name, version),
+    queryOsvHistorical('pypi', name, version),
   ])
+
+  // Convert OSV results to Vulnerability, looking up fixedAt from PyPI releases
+  const vulnerabilities: Vulnerability[] = osvResults.map((r) => ({
+    id: r.id,
+    summary: r.summary,
+    severity: r.severity,
+    aliases: r.aliases,
+    publishedAt: r.publishedAt,
+    isActive: r.isActive,
+    fixedAt:
+      r.fixedVersions.length > 0
+        ? findPypiFixDate(r.fixedVersions, releases)
+        : undefined,
+  }))
 
   // Build a shallow dep tree from install_requires
   const requiresDist = (info.requires_dist as string[] | null) ?? []
@@ -62,6 +86,22 @@ async function fetchPypiMeta(name: string): Promise<Record<string, unknown>> {
   })
   if (!res.ok) throw new Error(`PyPI error ${res.status} for "${name}"`)
   return res.json()
+}
+
+async function fetchPypiWeeklyDownloads(name: string): Promise<number> {
+  try {
+    const encoded = encodeURIComponent(name.toLowerCase())
+    const res = await fetch(`${PYPISTATS_API}/${encoded}/recent?period=week`, {
+      signal: AbortSignal.timeout(8_000),
+    })
+    if (!res.ok) return 0
+    const data = (await res.json()) as {
+      data?: { last_week?: number }
+    }
+    return data.data?.last_week ?? 0
+  } catch {
+    return 0
+  }
 }
 
 interface PypiBuildFile {
@@ -91,8 +131,24 @@ async function measureWheelSize(files: PypiBuildFile[]): Promise<SizeData> {
   }
 }
 
+function findPypiFixDate(
+  fixedVersions: string[],
+  releases: Record<string, PypiBuildFile[]>,
+): string | undefined {
+  const dates = fixedVersions
+    .flatMap((v) => {
+      const files = releases[v]
+      return files?.[0]?.upload_time
+        ? [new Date(files[0].upload_time).getTime()]
+        : []
+    })
+    .filter((d) => d > 0)
+  if (dates.length === 0) return undefined
+  return new Date(Math.min(...dates)).toISOString()
+}
+
 function extractLastPublished(
-  releases: Record<string, unknown[]>,
+  releases: Record<string, PypiBuildFile[]>,
   urls: PypiBuildFile[],
 ): string {
   if (urls.length > 0 && urls[0].upload_time) {
@@ -102,8 +158,8 @@ function extractLastPublished(
   const dates = Object.values(releases)
     .flat()
     .map((f) => (f as { upload_time?: string }).upload_time)
-    .filter(Boolean)
-    .map((d) => new Date(d!).getTime())
+    .filter((d): d is string => Boolean(d))
+    .map((d) => new Date(d).getTime())
 
   if (dates.length === 0) return new Date().toISOString()
   return new Date(Math.max(...dates)).toISOString()

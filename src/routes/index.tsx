@@ -166,7 +166,7 @@ function HomePage() {
           onSubmit={handleSubmit}
           role="search"
           aria-label="Search packages"
-          className="mx-auto flex max-w-2xl flex-col gap-3 sm:flex-row"
+          className="mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row"
         >
           {/* Ecosystem selector */}
           <div
