@@ -27,8 +27,53 @@ export const searchRegistry = createServerFn({ method: 'GET' })
   })
 
 async function searchNpm(query: string): Promise<RegistryResult[]> {
-  const q = query.toLowerCase()
+  // Two different APIs serve different query shapes well:
+  //   Scoped (@...) queries  → npm registry FTS: knows scoped packages by exact scope name
+  //   Unscoped queries       → npms.io: fuzzy/proximity scoring returns "lodash" for "lodas"
+  return query.startsWith('@') ? searchNpmRegistry(query) : searchNpmsIo(query)
+}
 
+function sortAndSlice(
+  items: Array<{ name: string; description: string; version: string }>,
+  q: string,
+): RegistryResult[] {
+  const filtered = items.filter((r) => r.name.toLowerCase().includes(q))
+  // Rank: exact → starts-with → contains-elsewhere; shorter names first within each tier.
+  filtered.sort((a, b) => {
+    const an = a.name.toLowerCase()
+    const bn = b.name.toLowerCase()
+    const aRank = an === q ? 0 : an.startsWith(q) ? 1 : 2
+    const bRank = bn === q ? 0 : bn.startsWith(q) ? 1 : 2
+    if (aRank !== bRank) return aRank - bRank
+    return an.length - bn.length
+  })
+  return filtered.slice(0, 8)
+}
+
+async function searchNpmRegistry(query: string): Promise<RegistryResult[]> {
+  const q = query.toLowerCase()
+  const url = `https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(query)}&size=25`
+  const res = await fetch(url, { signal: AbortSignal.timeout(5_000) })
+  if (!res.ok) return []
+
+  const data = (await res.json()) as {
+    objects: Array<{
+      package: { name: string; description?: string; version: string }
+    }>
+  }
+
+  return sortAndSlice(
+    data.objects.map(({ package: pkg }) => ({
+      name: pkg.name,
+      description: pkg.description ?? '',
+      version: pkg.version,
+    })),
+    q,
+  )
+}
+
+async function searchNpmsIo(query: string): Promise<RegistryResult[]> {
+  const q = query.toLowerCase()
   // npms.io returns far better prefix/fuzzy matches than the npm registry FTS.
   // e.g. "lodas" → npm FTS never returns "lodash"; npms.io returns it at rank ~13.
   // Request more candidates so the name filter has enough to work with.
@@ -38,34 +83,18 @@ async function searchNpm(query: string): Promise<RegistryResult[]> {
 
   const data = (await res.json()) as {
     results: Array<{
-      package: {
-        name: string
-        description?: string
-        version: string
-      }
+      package: { name: string; description?: string; version: string }
     }>
   }
 
-  const filtered = data.results.filter(({ package: pkg }) =>
-    pkg.name.toLowerCase().includes(q),
+  return sortAndSlice(
+    data.results.map(({ package: pkg }) => ({
+      name: pkg.name,
+      description: pkg.description ?? '',
+      version: pkg.version,
+    })),
+    q,
   )
-
-  // Rank: exact match → starts-with → contains-elsewhere.
-  // Within each tier, shorter names first (e.g. "lodash" before "lodash.merge").
-  filtered.sort((a, b) => {
-    const an = a.package.name.toLowerCase()
-    const bn = b.package.name.toLowerCase()
-    const aRank = an === q ? 0 : an.startsWith(q) ? 1 : 2
-    const bRank = bn === q ? 0 : bn.startsWith(q) ? 1 : 2
-    if (aRank !== bRank) return aRank - bRank
-    return an.length - bn.length
-  })
-
-  return filtered.slice(0, 8).map(({ package: pkg }) => ({
-    name: pkg.name,
-    description: pkg.description ?? '',
-    version: pkg.version,
-  }))
 }
 
 // ── PyPI simple index cache ───────────────────────────────────────────────────
