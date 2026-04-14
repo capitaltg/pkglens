@@ -61,7 +61,7 @@ function KeyStats({
   const { scoreData, sizeData, maintenanceData } = data
   const grade = scoreData.grade
   const composite = scoreData.composite
-  const activeCves = scoreData.securityDetail.activeCves
+  const activeCves = scoreData.securityDetail?.activeCves ?? 0
   const sizeDisplay =
     sizeData.gzipBytes > 0 ? formatBytes(sizeData.gzipBytes) : '—'
   const sizeLabel =
@@ -163,24 +163,6 @@ function KeyStats({
           </span>
         </div>
 
-        {/* Size */}
-        <div className="flex flex-col items-center bg-[var(--surface)] px-5 py-6 text-center">
-          <div className="flex flex-1 items-center justify-center">
-            <span
-              aria-label={`${sizeLabel}: ${sizeDisplay}`}
-              className="text-4xl font-black leading-none tracking-tight text-[var(--sea-ink)]"
-            >
-              {sizeDisplay}
-            </span>
-          </div>
-          <span
-            aria-hidden="true"
-            className="mt-3 text-xs font-semibold uppercase tracking-widest text-[var(--sea-ink-soft)]"
-          >
-            {sizeLabel}
-          </span>
-        </div>
-
         {/* Active CVEs */}
         <div className="flex flex-col items-center bg-[var(--surface)] px-5 py-6 text-center">
           <div className="flex flex-1 items-center justify-center">
@@ -201,6 +183,24 @@ function KeyStats({
             className="mt-3 text-xs font-semibold uppercase tracking-widest text-[var(--sea-ink-soft)]"
           >
             Active CVEs
+          </span>
+        </div>
+
+        {/* Size */}
+        <div className="flex flex-col items-center bg-[var(--surface)] px-5 py-6 text-center">
+          <div className="flex flex-1 items-center justify-center">
+            <span
+              aria-label={`${sizeLabel}: ${sizeDisplay}`}
+              className="text-4xl font-black leading-none tracking-tight text-[var(--sea-ink)]"
+            >
+              {sizeDisplay}
+            </span>
+          </div>
+          <span
+            aria-hidden="true"
+            className="mt-3 text-xs font-semibold uppercase tracking-widest text-[var(--sea-ink-soft)]"
+          >
+            {sizeLabel}
           </span>
         </div>
 
