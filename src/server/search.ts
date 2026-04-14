@@ -57,14 +57,36 @@ async function searchMaven(query: string): Promise<RegistryResult[]> {
     response: {
       docs: Array<{
         id: string
+        g: string
+        a: string
         latestVersion: string
       }>
     }
   }
 
-  return data.response.docs.map((doc) => ({
-    name: doc.id,
-    description: '',
-    version: doc.latestVersion,
-  }))
+  return Promise.all(
+    data.response.docs.map(async (doc) => ({
+      name: doc.id,
+      description: await fetchPomDescription(doc.g, doc.a, doc.latestVersion),
+      version: doc.latestVersion,
+    })),
+  )
+}
+
+async function fetchPomDescription(
+  groupId: string,
+  artifactId: string,
+  version: string,
+): Promise<string> {
+  try {
+    const groupPath = groupId.replace(/\./g, '/')
+    const url = `https://repo1.maven.org/maven2/${groupPath}/${artifactId}/${version}/${artifactId}-${version}.pom`
+    const res = await fetch(url, { signal: AbortSignal.timeout(3_000) })
+    if (!res.ok) return ''
+    const xml = await res.text()
+    const match = xml.match(/<description[^>]*>([\s\S]*?)<\/description>/)
+    return match ? match[1].trim().replace(/\s+/g, ' ') : ''
+  } catch {
+    return ''
+  }
 }
