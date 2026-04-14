@@ -27,7 +27,7 @@ export const searchRegistry = createServerFn({ method: 'GET' })
   })
 
 async function searchNpm(query: string): Promise<RegistryResult[]> {
-  const url = `https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(query)}&size=8`
+  const url = `https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(query)}&size=20`
   const res = await fetch(url, { signal: AbortSignal.timeout(5_000) })
   if (!res.ok) return []
 
@@ -41,11 +41,15 @@ async function searchNpm(query: string): Promise<RegistryResult[]> {
     }>
   }
 
-  return data.objects.map(({ package: pkg }) => ({
-    name: pkg.name,
-    description: pkg.description ?? '',
-    version: pkg.version,
-  }))
+  const q = query.toLowerCase()
+  return data.objects
+    .filter(({ package: pkg }) => pkg.name.toLowerCase().includes(q))
+    .slice(0, 8)
+    .map(({ package: pkg }) => ({
+      name: pkg.name,
+      description: pkg.description ?? '',
+      version: pkg.version,
+    }))
 }
 
 async function searchMaven(query: string): Promise<RegistryResult[]> {
@@ -64,8 +68,12 @@ async function searchMaven(query: string): Promise<RegistryResult[]> {
     }
   }
 
+  const q = query.toLowerCase()
+  const filtered = data.response.docs.filter((doc) =>
+    doc.id.toLowerCase().includes(q),
+  )
   return Promise.all(
-    data.response.docs.map(async (doc) => ({
+    filtered.map(async (doc) => ({
       name: doc.id,
       description: await fetchPomDescription(doc.g, doc.a, doc.latestVersion),
       version: doc.latestVersion,
