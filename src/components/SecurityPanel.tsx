@@ -127,6 +127,23 @@ function VulnCard({
                   ·
                 </span>
               )}
+              {!isActive && v.fixedVersion && (
+                <>
+                  <span className="text-[var(--sea-ink-soft)]">
+                    Fixed in{' '}
+                    <span className="font-semibold text-[var(--sea-ink)]">
+                      v{v.fixedVersion}
+                    </span>
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="text-[var(--sea-ink-soft)]"
+                    style={{ fontSize: '15px' }}
+                  >
+                    ·
+                  </span>
+                </>
+              )}
               {isActive ? (
                 <span className="font-semibold text-red-600 dark:text-red-400">
                   Active

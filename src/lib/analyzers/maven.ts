@@ -47,6 +47,7 @@ export async function analyzeMavenPackage(
     publishedAt: r.publishedAt,
     isActive: r.isActive,
     fixedAt: undefined, // Maven doesn't have a convenient fix-date API
+    fixedVersion: r.fixedVersions[0],
   }))
 
   const maintenanceData: MaintenanceData = {

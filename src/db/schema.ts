@@ -114,6 +114,7 @@ export interface Vulnerability {
   publishedAt?: string
   isActive?: boolean // true = current version still affected; undefined = unknown (treated as active)
   fixedAt?: string // ISO date when the first fixed version was released
+  fixedVersion?: string // version string of the first fix (e.g. "1.2.3")
 }
 
 export interface MaintenanceData {

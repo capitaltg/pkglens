@@ -49,18 +49,22 @@ export async function analyzePypiPackage(
   ])
 
   // Convert OSV results to Vulnerability, looking up fixedAt from PyPI releases
-  const vulnerabilities: Vulnerability[] = osvResults.map((r) => ({
-    id: r.id,
-    summary: r.summary,
-    severity: r.severity,
-    aliases: r.aliases,
-    publishedAt: r.publishedAt,
-    isActive: r.isActive,
-    fixedAt:
+  const vulnerabilities: Vulnerability[] = osvResults.map((r) => {
+    const earliestFix =
       r.fixedVersions.length > 0
-        ? findPypiFixDate(r.fixedVersions, releases)
-        : undefined,
-  }))
+        ? findEarliestPypiFix(r.fixedVersions, releases)
+        : undefined
+    return {
+      id: r.id,
+      summary: r.summary,
+      severity: r.severity,
+      aliases: r.aliases,
+      publishedAt: r.publishedAt,
+      isActive: r.isActive,
+      fixedAt: earliestFix?.date,
+      fixedVersion: earliestFix?.version,
+    }
+  })
 
   // Build a shallow dep tree from install_requires
   const requiresDist = (info.requires_dist as string[] | null) ?? []
@@ -131,20 +135,20 @@ async function measureWheelSize(files: PypiBuildFile[]): Promise<SizeData> {
   }
 }
 
-function findPypiFixDate(
+function findEarliestPypiFix(
   fixedVersions: string[],
   releases: Record<string, PypiBuildFile[]>,
-): string | undefined {
-  const dates = fixedVersions
-    .flatMap((v) => {
-      const files = releases[v]
-      return files?.[0]?.upload_time
-        ? [new Date(files[0].upload_time).getTime()]
-        : []
-    })
-    .filter((d) => d > 0)
-  if (dates.length === 0) return undefined
-  return new Date(Math.min(...dates)).toISOString()
+): { date: string; version: string } | undefined {
+  let earliest: { date: string; version: string } | undefined
+  for (const v of fixedVersions) {
+    const uploadTime = releases[v]?.[0]?.upload_time
+    if (!uploadTime) continue
+    const t = new Date(uploadTime).getTime()
+    if (!earliest || t < new Date(earliest.date).getTime()) {
+      earliest = { date: new Date(uploadTime).toISOString(), version: v }
+    }
+  }
+  return earliest
 }
 
 function extractLastPublished(

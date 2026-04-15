@@ -76,18 +76,22 @@ export async function analyzeNpmPackage(
   ])
 
   // Convert OSV results to Vulnerability, looking up fixedAt from the registry time map
-  const vulnerabilities: Vulnerability[] = osvResults.map((r) => ({
-    id: r.id,
-    summary: r.summary,
-    severity: r.severity,
-    aliases: r.aliases,
-    publishedAt: r.publishedAt,
-    isActive: r.isActive,
-    fixedAt:
+  const vulnerabilities: Vulnerability[] = osvResults.map((r) => {
+    const earliestFix =
       r.fixedVersions.length > 0 && timeMap
-        ? findEarliestFixDate(r.fixedVersions, timeMap)
-        : undefined,
-  }))
+        ? findEarliestFix(r.fixedVersions, timeMap)
+        : undefined
+    return {
+      id: r.id,
+      summary: r.summary,
+      severity: r.severity,
+      aliases: r.aliases,
+      publishedAt: r.publishedAt,
+      isActive: r.isActive,
+      fixedAt: earliestFix?.date,
+      fixedVersion: earliestFix?.version,
+    }
+  })
 
   return { version, sizeData, depTree, vulnerabilities, maintenanceData }
 }
@@ -162,16 +166,20 @@ async function detectTypescriptSupport(
 
 // ─── Fix date lookup ──────────────────────────────────────────────────────────
 
-function findEarliestFixDate(
+function findEarliestFix(
   fixedVersions: string[],
   timeMap: Record<string, string>,
-): string | undefined {
-  const dates = fixedVersions
-    .map((v) => timeMap[v])
-    .filter(Boolean)
-    .map((d) => new Date(d).getTime())
-  if (dates.length === 0) return undefined
-  return new Date(Math.min(...dates)).toISOString()
+): { date: string; version: string } | undefined {
+  let earliest: { date: string; version: string } | undefined
+  for (const v of fixedVersions) {
+    const d = timeMap[v]
+    if (!d) continue
+    const t = new Date(d).getTime()
+    if (!earliest || t < new Date(earliest.date).getTime()) {
+      earliest = { date: new Date(d).toISOString(), version: v }
+    }
+  }
+  return earliest
 }
 
 // ─── Bundle size via esbuild ─────────────────────────────────────────────────
