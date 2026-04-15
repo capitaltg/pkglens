@@ -72,6 +72,22 @@ async function searchNpmRegistry(query: string): Promise<RegistryResult[]> {
   )
 }
 
+async function fetchNpmLatestVersion(name: string): Promise<string> {
+  const encoded = name.startsWith('@')
+    ? `@${encodeURIComponent(name.slice(1))}`
+    : encodeURIComponent(name)
+  try {
+    const res = await fetch(`https://registry.npmjs.org/${encoded}/latest`, {
+      signal: AbortSignal.timeout(3_000),
+    })
+    if (!res.ok) return ''
+    const data = (await res.json()) as { version?: string }
+    return data.version ?? ''
+  } catch {
+    return ''
+  }
+}
+
 async function searchNpmsIo(query: string): Promise<RegistryResult[]> {
   const q = query.toLowerCase()
   // npms.io returns far better prefix/fuzzy matches than the npm registry FTS.
@@ -87,13 +103,21 @@ async function searchNpmsIo(query: string): Promise<RegistryResult[]> {
     }>
   }
 
-  return sortAndSlice(
+  const sliced = sortAndSlice(
     data.results.map(({ package: pkg }) => ({
       name: pkg.name,
       description: pkg.description ?? '',
-      version: pkg.version,
+      version: '',
     })),
     q,
+  )
+
+  // Fetch accurate versions from the npm registry in parallel (npms.io versions can be stale)
+  return Promise.all(
+    sliced.map(async (r) => ({
+      ...r,
+      version: await fetchNpmLatestVersion(r.name),
+    })),
   )
 }
 

@@ -181,7 +181,7 @@ function HomePage() {
                 aria-pressed={ecosystem === e.id}
                 aria-label={`Search in ${e.label}`}
                 onClick={() => setEcosystem(e.id)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                   ecosystem === e.id
                     ? 'bg-[var(--lagoon-deep)] text-white shadow-sm'
                     : 'text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)]'

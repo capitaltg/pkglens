@@ -197,7 +197,7 @@ function TabButton({
         '-mb-px border-b-2 px-1 pb-2.5 pt-0.5 text-sm font-semibold transition',
         active
           ? 'border-[var(--lagoon-deep)] text-[var(--lagoon-deep)]'
-          : 'border-transparent text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)]',
+          : 'border-transparent text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)] cursor-pointer',
       )}
     >
       {label}
