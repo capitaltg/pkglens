@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { searchRegistry, type RegistryResult } from '../server/search'
+import { formatVersion } from '#/lib/utils'
 
 export const Route = createFileRoute('/')({ component: HomePage })
 
@@ -181,7 +182,7 @@ function HomePage() {
                 aria-pressed={ecosystem === e.id}
                 aria-label={`Search in ${e.label}`}
                 onClick={() => setEcosystem(e.id)}
-                className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                className={`cursor-pointer rounded-[10px] px-3 py-1.5 text-sm font-semibold transition ${
                   ecosystem === e.id
                     ? 'bg-[var(--lagoon-deep)] text-white shadow-sm'
                     : 'text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)]'
@@ -274,7 +275,7 @@ function HomePage() {
                         goTo(s.name)
                       }}
                       onMouseEnter={() => setActiveIndex(i)}
-                      className={`flex cursor-pointer flex-col gap-0.5 rounded-xl px-3 py-2 text-left transition ${
+                      className={`flex cursor-pointer flex-col gap-0.5 rounded-[11px] px-3 py-2 text-left transition ${
                         i === activeIndex
                           ? 'bg-[var(--lagoon)]/20 outline outline-1 outline-[var(--lagoon-deep)]/30'
                           : 'hover:bg-[var(--surface-strong)]/60'
@@ -286,7 +287,7 @@ function HomePage() {
                         </span>
                         {s.version && (
                           <span className="shrink-0 rounded-md bg-[var(--lagoon)]/15 px-1.5 py-0.5 text-xs font-medium text-[var(--lagoon-deep)]">
-                            {s.version}
+                            {formatVersion(s.version)}
                           </span>
                         )}
                       </div>

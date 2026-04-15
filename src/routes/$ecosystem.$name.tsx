@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { cn } from '#/lib/utils'
+import { cn, formatVersion } from '#/lib/utils'
 import { ScoreBreakdown, gradeStyles } from '#/components/ScoreBadge'
 import { SizeMetrics, formatBytes } from '#/components/SizeMetrics'
 import { SecurityPanel } from '#/components/SecurityPanel'
@@ -459,7 +459,7 @@ function PackageDetailPage() {
         {initial.data && (
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
             <span className="font-mono text-[var(--sea-ink-soft)]">
-              v{initial.data.version}
+              {formatVersion(initial.data.version)}
             </span>
             {meta?.license && (
               <span className="text-[var(--sea-ink-soft)]">{meta.license}</span>

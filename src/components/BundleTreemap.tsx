@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DepNode } from '#/db/schema'
+import { formatVersion } from '#/lib/utils'
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -421,7 +422,7 @@ export function BundleTreemap({ nodes }: BundleTreemapProps) {
           )}
           <p className="font-bold text-white">{tooltip.name}</p>
           <p className="mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
-            {tooltip.version}
+            {formatVersion(tooltip.version)}
             <span
               className="mx-1.5"
               style={{ color: 'rgba(255,255,255,0.25)' }}

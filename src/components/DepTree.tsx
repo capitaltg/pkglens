@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { DepNode } from '#/db/schema'
-import { cn } from '#/lib/utils'
+import { cn, formatVersion } from '#/lib/utils'
 
 interface DepTreeProps {
   nodes: DepNode[]
@@ -158,7 +158,7 @@ function DepNodeRow({
           aria-hidden="true"
           className="flex-shrink-0 rounded border border-[var(--line)] bg-[var(--surface-strong)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--sea-ink-soft)]"
         >
-          {node.version}
+          {formatVersion(node.version)}
         </span>
 
         {/* Size bar + percentage */}

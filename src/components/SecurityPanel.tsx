@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Vulnerability } from '#/db/schema'
-import { cn } from '#/lib/utils'
+import { cn, formatVersion } from '#/lib/utils'
 
 interface SecurityPanelProps {
   vulnerabilities: Vulnerability[]
@@ -132,7 +132,7 @@ function VulnCard({
                   <span className="text-[var(--sea-ink-soft)]">
                     Fixed in{' '}
                     <span className="font-semibold text-[var(--sea-ink)]">
-                      v{v.fixedVersion}
+                      {formatVersion(v.fixedVersion)}
                     </span>
                   </span>
                   <span
