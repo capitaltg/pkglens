@@ -2,6 +2,7 @@ import type { SizeData } from '#/db/schema'
 
 interface SizeMetricsProps {
   sizeData: SizeData
+  ecosystem?: string
 }
 
 export function formatBytes(bytes: number): string {
@@ -20,13 +21,32 @@ function loadTime(gzipBytes: number): string {
   return `${seconds.toFixed(1)}s`
 }
 
-export function SizeMetrics({ sizeData }: SizeMetricsProps) {
+const LABELS: Record<string, { primary: string; compressed: string }> = {
+  npm: { primary: 'Minified', compressed: 'Minified + Gzip' },
+  pypi: { primary: 'Package Size', compressed: 'Compressed' },
+  maven: { primary: 'JAR Size', compressed: 'Compressed' },
+}
+
+const DEFAULT_LABELS = LABELS.npm
+
+export function SizeMetrics({ sizeData, ecosystem }: SizeMetricsProps) {
+  const labels = (ecosystem && LABELS[ecosystem]) ?? DEFAULT_LABELS
+  const hasData = sizeData.minifiedBytes > 0 || sizeData.gzipBytes > 0
+
+  if (!hasData) {
+    return (
+      <div className="text-sm italic text-[var(--sea-ink-soft)]">
+        Size unavailable — artifact could not be measured
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-5">
       <dl className="grid grid-cols-2 gap-x-8">
         <div>
           <dt className="text-xs font-semibold uppercase tracking-widest text-[var(--sea-ink-soft)]">
-            Minified
+            {labels.primary}
           </dt>
           <dd className="m-0 mt-1.5 text-4xl font-black leading-none tracking-tight text-[var(--sea-ink)]">
             {formatBytes(sizeData.minifiedBytes)}
@@ -34,7 +54,7 @@ export function SizeMetrics({ sizeData }: SizeMetricsProps) {
         </div>
         <div>
           <dt className="text-xs font-semibold uppercase tracking-widest text-[var(--sea-ink-soft)]">
-            Minified + Gzip
+            {labels.compressed}
           </dt>
           <dd className="m-0 mt-1.5 text-4xl font-black leading-none tracking-tight text-[var(--sea-ink)]">
             {formatBytes(sizeData.gzipBytes)}
@@ -54,7 +74,16 @@ export function SizeMetrics({ sizeData }: SizeMetricsProps) {
       )}
 
       <div className="border-t border-[var(--line)] pt-4 text-sm text-[var(--sea-ink-soft)]">
-        ⚡ {loadTime(sizeData.gzipBytes)} to download on a slow 3G connection
+        {ecosystem === 'maven' ? (
+          <>
+            ⚡ {loadTime(sizeData.gzipBytes)} to download on a slow connection
+          </>
+        ) : (
+          <>
+            ⚡ {loadTime(sizeData.gzipBytes)} to download on a slow 3G
+            connection
+          </>
+        )}
       </div>
     </div>
   )

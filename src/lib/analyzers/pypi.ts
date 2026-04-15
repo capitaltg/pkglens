@@ -35,7 +35,7 @@ export async function analyzePypiPackage(
     weeklyDownloads,
     isDeprecated: typeof info.yanked === 'boolean' ? info.yanked : false,
     description: (info.summary as string) ?? undefined,
-    license: (info.license as string) ?? undefined,
+    license: normalizePypiLicense(info),
     homepage: (info.home_page as string) ?? undefined,
     keywords: parseKeywords(info.keywords as string | undefined),
     repositoryUrl:
@@ -45,7 +45,7 @@ export async function analyzePypiPackage(
 
   const [sizeData, osvResults] = await Promise.all([
     measureWheelSize(urlList),
-    queryOsvHistorical('pypi', name, version),
+    queryOsvHistorical('pypi', name.toLowerCase(), version),
   ])
 
   // Convert OSV results to Vulnerability, looking up fixedAt from PyPI releases
@@ -71,7 +71,7 @@ export async function analyzePypiPackage(
   const depTree = requiresDist.slice(0, 20).map(
     (req): DepNode => ({
       name: parseRequireName(req),
-      version: req,
+      version: parseRequireVersion(req),
       ecosystem: 'pypi',
       selfBytes: 0,
       totalBytes: 0,
@@ -180,4 +180,41 @@ function parseKeywords(raw: string | undefined): string[] | undefined {
 /** Parse package name from PEP 508 requirement string, e.g. "requests>=2.0" → "requests" */
 function parseRequireName(req: string): string {
   return req.split(/[>=<!;[\s]/)[0].trim()
+}
+
+/** Parse version specifier from PEP 508 requirement string, e.g. "requests>=2.0,<3; extra=='x'" → ">=2.0,<3" */
+function parseRequireVersion(req: string): string {
+  // Strip environment markers (everything after ;)
+  const withoutMarker = req.split(';')[0].trim()
+  // Extract version operator onwards (>=, <=, ==, !=, ~=, >)
+  const match = withoutMarker.match(/[><=!~].+/)
+  return match ? match[0].trim() : ''
+}
+
+/**
+ * Extract a short license identifier from PyPI metadata.
+ * Prefers `license_expression` (SPDX), then the License classifier,
+ * then falls back to `license` if it looks like an identifier (≤ 50 chars).
+ */
+function normalizePypiLicense(
+  info: Record<string, unknown>,
+): string | undefined {
+  // 1. license_expression is a proper SPDX string (e.g. "MIT", "BSD-3-Clause")
+  const expr = info.license_expression as string | undefined
+  if (expr && expr.trim().length > 0) return expr.trim()
+
+  // 2. Classifiers like "License :: OSI Approved :: MIT License" → extract last segment
+  const classifiers = (info.classifiers as string[] | undefined) ?? []
+  const licenseCls = classifiers.find((c) => c.startsWith('License ::'))
+  if (licenseCls) {
+    const parts = licenseCls.split(' :: ')
+    const label = parts[parts.length - 1].trim()
+    if (label && label !== 'OSI Approved') return label
+  }
+
+  // 3. Raw license field — only use if it looks like an identifier, not full text
+  const raw = (info.license as string | undefined)?.trim()
+  if (raw && raw.length <= 50 && !raw.includes('\n')) return raw
+
+  return undefined
 }

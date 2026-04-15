@@ -31,10 +31,8 @@ export async function analyzeMavenPackage(
   if (!doc) throw new Error(`Maven artifact not found: "${name}"`)
 
   const version: string = doc.latestVersion ?? doc.v ?? 'unknown'
-  const jarUrl = buildJarUrl(groupId, artifactId, version)
-
   const [sizeData, osvResults, depTree] = await Promise.all([
-    measureJarSize(jarUrl),
+    measureJarSize(groupId, artifactId, version),
     queryOsvHistorical('maven', name, version),
     fetchPomDeps(groupId, artifactId, version),
   ])
@@ -92,26 +90,75 @@ function buildJarUrl(
   return `${MAVEN_REPO}/${groupPath}/${artifactId}/${version}/${artifactId}-${version}.jar`
 }
 
-async function measureJarSize(jarUrl: string): Promise<SizeData> {
-  // Use HEAD request to get Content-Length without downloading the full JAR
+async function getJarBytes(url: string): Promise<number> {
+  // 1. Try HEAD — most servers return Content-Length
   try {
-    const res = await fetch(jarUrl, {
+    const res = await fetch(url, {
       method: 'HEAD',
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(10_000),
     })
-    if (!res.ok) return { minifiedBytes: 0, gzipBytes: 0 }
-
-    const contentLength = res.headers.get('content-length')
-    const jarBytes = contentLength ? parseInt(contentLength, 10) : 0
-
-    // JARs are ZIP-compressed; estimate gzip as ~90% of jar size (already compressed)
-    return {
-      minifiedBytes: jarBytes,
-      gzipBytes: Math.round(jarBytes * 0.9),
+    if (res.ok) {
+      const cl = res.headers.get('content-length')
+      if (cl) return parseInt(cl, 10)
     }
   } catch {
-    return { minifiedBytes: 0, gzipBytes: 0 }
+    // fall through
   }
+
+  // 2. HEAD gave no Content-Length — try a Range GET to read it from Content-Range
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Range: 'bytes=0-0' },
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (res.ok || res.status === 206) {
+      const cr = res.headers.get('content-range') // "bytes 0-0/TOTAL"
+      if (cr) {
+        const total = cr.split('/')[1]
+        if (total && total !== '*') return parseInt(total, 10)
+      }
+      const cl = res.headers.get('content-length')
+      if (cl) return parseInt(cl, 10)
+    }
+  } catch {
+    // fall through
+  }
+
+  return 0
+}
+
+async function measureJarSize(
+  groupId: string,
+  artifactId: string,
+  version: string,
+): Promise<SizeData> {
+  // Standard JAR URL
+  const standardUrl = buildJarUrl(groupId, artifactId, version)
+
+  // Common fat/shaded JAR suffixes to try as fallbacks
+  const groupPath = groupId.replace(/\./g, '/')
+  const base = `${MAVEN_REPO}/${groupPath}/${artifactId}/${version}/${artifactId}-${version}`
+  const candidates = [
+    standardUrl,
+    `${base}-all.jar`,
+    `${base}-uber.jar`,
+    `${base}-shaded.jar`,
+    `${base}-bundle.jar`,
+  ]
+
+  for (const url of candidates) {
+    const bytes = await getJarBytes(url)
+    if (bytes > 0) {
+      // JARs are ZIP-compressed; gzip savings on an already-compressed archive are minimal
+      return {
+        minifiedBytes: bytes,
+        gzipBytes: Math.round(bytes * 0.95),
+      }
+    }
+  }
+
+  return { minifiedBytes: 0, gzipBytes: 0 }
 }
 
 async function fetchPomDeps(

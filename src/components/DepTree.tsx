@@ -153,13 +153,22 @@ function DepNodeRow({
           {node.name}
         </span>
 
-        {/* Version chip */}
-        <span
-          aria-hidden="true"
-          className="flex-shrink-0 rounded border border-[var(--line)] bg-[var(--surface-strong)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--sea-ink-soft)]"
-        >
-          {formatVersion(node.version)}
-        </span>
+        {/* Version */}
+        {node.version ? (
+          <span
+            aria-hidden="true"
+            className="flex-shrink-0 rounded border border-[var(--line)] bg-[var(--surface-strong)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--sea-ink-soft)]"
+          >
+            {formatVersion(node.version)}
+          </span>
+        ) : (
+          <span
+            aria-hidden="true"
+            className="flex-shrink-0 text-[11px] text-[var(--sea-ink-soft)]"
+          >
+            —
+          </span>
+        )}
 
         {/* Size bar + percentage */}
         <div

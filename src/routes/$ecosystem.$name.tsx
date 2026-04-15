@@ -369,7 +369,7 @@ function AnalysisResult({
 
       {/* Bundle / package size */}
       <SectionCard title={sizeTitle}>
-        <SizeMetrics sizeData={data.sizeData} />
+        <SizeMetrics sizeData={data.sizeData} ecosystem={ecosystem} />
         <p className="mt-auto pt-4 text-xs text-[var(--sea-ink-soft)]">
           Analyzed{' '}
           {new Date(data.analyzedAt).toLocaleString(undefined, {
@@ -388,13 +388,15 @@ function AnalysisResult({
       <SectionCard
         title="Dependency Tree"
         titleAction={
-          <button
-            type="button"
-            onClick={allExpanded ? collapseAll : expandAll}
-            className="text-xs font-semibold text-[var(--lagoon-deep)] hover:underline"
-          >
-            {allExpanded ? 'Collapse all' : 'Expand all'}
-          </button>
+          totalCount > 0 ? (
+            <button
+              type="button"
+              onClick={allExpanded ? collapseAll : expandAll}
+              className="text-xs font-semibold text-[var(--lagoon-deep)] hover:underline"
+            >
+              {allExpanded ? 'Collapse all' : 'Expand all'}
+            </button>
+          ) : undefined
         }
         meta={
           <>
@@ -461,13 +463,17 @@ function PackageDetailPage() {
             <span className="font-mono text-[var(--sea-ink-soft)]">
               {formatVersion(initial.data.version)}
             </span>
-            {meta?.license && (
-              <span className="text-[var(--sea-ink-soft)]">{meta.license}</span>
-            )}
+            {meta?.license &&
+              meta.license.length <= 50 &&
+              !meta.license.includes('\n') && (
+                <span className="text-[var(--sea-ink-soft)]">
+                  {meta.license}
+                </span>
+              )}
             {meta?.weeklyDownloads !== undefined &&
               meta.weeklyDownloads > 0 && (
                 <span className="text-[var(--sea-ink-soft)]">
-                  {formatDownloads(meta.weeklyDownloads)} downloads/wk
+                  {formatDownloads(meta.weeklyDownloads)} downloads/week
                 </span>
               )}
             {meta?.homepage && (
