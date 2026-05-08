@@ -44,3 +44,7 @@ pnpm-debug.log*
 
 # Test coverage
 coverage/
+
+# Temporary files
+tmp/
+temp/

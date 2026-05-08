@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+.output
+dist-worker
+dist-migrate
+.env*
+lefthook.yml
+commitlint.config.ts
+prettier.config.js
+drizzle.config.ts
