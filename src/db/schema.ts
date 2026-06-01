@@ -18,7 +18,8 @@ export const jobStatusEnum = pgEnum('job_status', [
   'failed',
 ])
 
-// One row per ecosystem+name combination (latest analyzed version)
+// One row per ecosystem+name+version. A published version is immutable, so its
+// analysis is cached permanently and keyed by exact version (not just name).
 export const packages = pgTable(
   'packages',
   {
@@ -28,7 +29,7 @@ export const packages = pgTable(
     version: text().notNull(),
     analyzedAt: timestamp('analyzed_at').defaultNow().notNull(),
   },
-  (t) => [unique().on(t.ecosystem, t.name)],
+  (t) => [unique().on(t.ecosystem, t.name, t.version)],
 )
 
 // Full analysis result stored as JSON blobs for flexibility
@@ -51,6 +52,12 @@ export const analysisResults = pgTable('analysis_results', {
   // Maintenance metadata
   maintenanceData: jsonb('maintenance_data').notNull().$type<MaintenanceData>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  // When the vulnerability data was last refreshed from OSV. The size/tree/bundle
+  // are immutable per version, but new CVEs get filed against old versions, so
+  // security is re-queried on a TTL independently of the rest.
+  securityRefreshedAt: timestamp('security_refreshed_at')
+    .defaultNow()
+    .notNull(),
 })
 
 // Background job tracking
@@ -72,6 +79,12 @@ export interface SizeData {
   gzipBytes: number
   /** Only set for npm packages that support tree-shaking */
   treeShakedBytes?: number
+  /**
+   * True when the package can't be bundled for the browser because it depends
+   * on Node built-ins (fs, crypto, …). There is no browser bundle, so the size
+   * dimension is omitted from scoring rather than reported as 0.
+   */
+  serverOnly?: boolean
 }
 
 export interface DepNode {

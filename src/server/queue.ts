@@ -29,6 +29,13 @@ export interface AnalysisJobData {
   name: string
 }
 
+export interface SecurityRefreshJobData {
+  kind: 'refresh-security'
+  ecosystem: 'npm' | 'pypi' | 'maven'
+  name: string
+  version: string
+}
+
 export async function enqueueAnalysis(
   data: AnalysisJobData,
 ): Promise<{ id: number }> {
@@ -52,4 +59,23 @@ export async function enqueueAnalysis(
     .where(eq(analysisJobs.id, dbJob.id))
 
   return { id: dbJob.id }
+}
+
+/**
+ * Enqueue a lightweight, metadata-only security refresh for a cached version.
+ * No analysis_jobs row — it's a background update, not user-polled. The
+ * deterministic jobId dedupes concurrent refreshes for the same version.
+ */
+export async function enqueueSecurityRefresh(data: {
+  ecosystem: 'npm' | 'pypi' | 'maven'
+  name: string
+  version: string
+}): Promise<void> {
+  const payload: SecurityRefreshJobData = { kind: 'refresh-security', ...data }
+  // BullMQ forbids ':' in custom job ids, and Maven names contain colons.
+  const jobId = `sec_${data.ecosystem}_${data.name}_${data.version}`.replace(
+    /:/g,
+    '_',
+  )
+  await getQueue().add(QUEUE_NAME, payload, { jobId, attempts: 2 })
 }

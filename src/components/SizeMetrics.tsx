@@ -30,8 +30,16 @@ const LABELS: Record<string, { primary: string; compressed: string }> = {
 const DEFAULT_LABELS = LABELS.npm
 
 export function SizeMetrics({ sizeData, ecosystem }: SizeMetricsProps) {
-  const labels = (ecosystem && LABELS[ecosystem]) ?? DEFAULT_LABELS
+  const labels = (ecosystem && LABELS[ecosystem]) || DEFAULT_LABELS
   const hasData = sizeData.minifiedBytes > 0 || sizeData.gzipBytes > 0
+
+  if (sizeData.serverOnly) {
+    return (
+      <div className="text-sm italic text-[var(--sea-ink-soft)]">
+        Server-side package — no browser bundle (depends on Node built-ins)
+      </div>
+    )
+  }
 
   if (!hasData) {
     return (

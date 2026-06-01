@@ -19,9 +19,6 @@ __unconfig*
 .env.local
 .env.*.local
 
-# Database
-drizzle/
-
 # OS
 .DS_Store
 Thumbs.db

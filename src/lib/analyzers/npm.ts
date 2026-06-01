@@ -6,7 +6,7 @@ import { promisify } from 'node:util'
 import { createGzip } from 'node:zlib'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { queryOsvHistorical } from '#/lib/osv'
+import { queryOsvHistorical, type OsvHistoricalResult } from '#/lib/osv'
 import type {
   DepNode,
   MaintenanceData,
@@ -75,8 +75,17 @@ export async function analyzeNpmPackage(
     queryOsvHistorical('npm', name, version),
   ])
 
-  // Convert OSV results to Vulnerability, looking up fixedAt from the registry time map
-  const vulnerabilities: Vulnerability[] = osvResults.map((r) => {
+  const vulnerabilities = mapNpmVulns(osvResults, timeMap)
+
+  return { version, sizeData, depTree, vulnerabilities, maintenanceData }
+}
+
+/** Map OSV results to Vulnerability, enriching fixedAt from the registry time map. */
+function mapNpmVulns(
+  osvResults: OsvHistoricalResult[],
+  timeMap?: Record<string, string>,
+): Vulnerability[] {
+  return osvResults.map((r) => {
     const earliestFix =
       r.fixedVersions.length > 0 && timeMap
         ? findEarliestFix(r.fixedVersions, timeMap)
@@ -92,8 +101,25 @@ export async function analyzeNpmPackage(
       fixedVersion: earliestFix?.version,
     }
   })
+}
 
-  return { version, sizeData, depTree, vulnerabilities, maintenanceData }
+/**
+ * Re-query just the vulnerabilities for a version — registry metadata + OSV
+ * only, no install or bundling. Used by the periodic security refresh so the
+ * permanent per-version cache still picks up newly-disclosed CVEs.
+ */
+export async function getNpmVulnerabilities(
+  name: string,
+  version: string,
+): Promise<Vulnerability[]> {
+  const [meta, osvResults] = await Promise.all([
+    fetchNpmMeta(name),
+    queryOsvHistorical('npm', name, version),
+  ])
+  return mapNpmVulns(
+    osvResults,
+    meta.time as Record<string, string> | undefined,
+  )
 }
 
 // ─── npm registry helpers ────────────────────────────────────────────────────
@@ -207,6 +233,16 @@ const ALWAYS_EXTERNAL = [
   '@remix-run/react',
 ]
 
+/** True when esbuild failed only because the package imports Node built-ins. */
+function isNodeBuiltinBundleError(err: unknown): boolean {
+  const stderr = (err as { stderr?: unknown }).stderr
+  if (typeof stderr !== 'string') return false
+  return (
+    stderr.includes('is built into node') ||
+    stderr.includes('Are you trying to bundle for node')
+  )
+}
+
 async function bundlePackage(
   name: string,
   version: string,
@@ -221,11 +257,20 @@ async function bundlePackage(
       JSON.stringify({ private: true, dependencies: { [name]: version } }),
     )
 
-    // Install the package (no scripts for safety)
-    await execFileAsync('npm', ['install', '--ignore-scripts', '--no-audit'], {
-      cwd: tmpDir,
-      timeout: 60_000,
-    })
+    // Install the package (no scripts for safety). Keep npm's cache inside the
+    // temp dir (--cache) so it's removed with it in the `finally` below, rather
+    // than accumulating forever in a shared cache and filling the disk.
+    await execFileAsync(
+      'npm',
+      [
+        'install',
+        '--ignore-scripts',
+        '--no-audit',
+        '--cache',
+        join(tmpDir, '.npm-cache'),
+      ],
+      { cwd: tmpDir, timeout: 60_000 },
+    )
 
     // Write an entry point that just re-exports the package
     const entry = join(tmpDir, 'entry.js')
@@ -236,20 +281,30 @@ async function bundlePackage(
 
     // Bundle with esbuild
     const bundleOut = join(tmpDir, 'bundle.js')
-    await execFileAsync(
-      'npx',
-      [
-        'esbuild',
-        entry,
-        '--bundle',
-        '--minify',
-        '--platform=browser',
-        '--format=esm',
-        `--outfile=${bundleOut}`,
-        ...externals.map((e) => `--external:${e}`),
-      ],
-      { cwd: tmpDir, timeout: 30_000 },
-    )
+    try {
+      await execFileAsync(
+        'npx',
+        [
+          'esbuild',
+          entry,
+          '--bundle',
+          '--minify',
+          '--platform=browser',
+          '--format=esm',
+          `--outfile=${bundleOut}`,
+          ...externals.map((e) => `--external:${e}`),
+        ],
+        { cwd: tmpDir, timeout: 30_000 },
+      )
+    } catch (err) {
+      // A package that imports Node built-ins (fs, crypto, …) has no browser
+      // bundle. Report it as server-side rather than failing the whole analysis
+      // (and retrying a deterministic failure 3×). Other esbuild errors are real.
+      if (isNodeBuiltinBundleError(err)) {
+        return { minifiedBytes: 0, gzipBytes: 0, serverOnly: true }
+      }
+      throw err
+    }
 
     const { readFile } = await import('node:fs/promises')
     const bundleBytes = await readFile(bundleOut)
