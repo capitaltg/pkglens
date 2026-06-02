@@ -10,9 +10,6 @@
 import { Worker, type ConnectionOptions } from 'bullmq'
 import IORedis from 'ioredis'
 import { and, desc, eq } from 'drizzle-orm'
-import { readdir, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { db } from '../src/db/index.ts'
 import { analysisJobs, analysisResults, packages } from '../src/db/schema.ts'
 import { analyzeNpmPackage } from '../src/lib/analyzers/npm.ts'
@@ -30,35 +27,16 @@ function fullError(err: unknown): string {
   if (!(err instanceof Error)) return String(err)
   const parts = [err.message]
   if (err.cause instanceof Error) parts.push(`cause: ${err.cause.message}`)
-  // execFile errors (npm install / esbuild) carry the real reason in stderr —
-  // surface it instead of the useless "Command failed: npm install".
-  const stderr = (err as { stderr?: unknown }).stderr
-  if (stderr) parts.push(`stderr: ${String(stderr).trim().slice(-700)}`)
+  // A killed child (npm install / esbuild) means we hit the timeout — say so
+  // explicitly, since otherwise stderr is empty and "Command failed" is opaque.
+  const e = err as { stderr?: unknown; killed?: boolean; signal?: string }
+  if (e.killed || e.signal) {
+    parts.push(`timed out / killed (signal ${e.signal ?? 'unknown'})`)
+  }
+  // execFile errors otherwise carry the real reason in stderr.
+  if (e.stderr) parts.push(`stderr: ${String(e.stderr).trim().slice(-700)}`)
   return parts.join(' | ')
 }
-
-// Remove temp dirs left behind by analyses that were killed before their
-// cleanup ran (e.g. an OOM mid-bundle). Runs once at startup.
-async function sweepOrphanTempDirs(): Promise<void> {
-  try {
-    const dir = tmpdir()
-    const stale = (await readdir(dir)).filter((e) =>
-      e.startsWith('deplens-npm-'),
-    )
-    await Promise.all(
-      stale.map((e) =>
-        rm(join(dir, e), { recursive: true, force: true }).catch(() => {}),
-      ),
-    )
-    if (stale.length) {
-      console.log(`[worker] swept ${stale.length} orphaned temp dir(s)`)
-    }
-  } catch {
-    // best effort — never block startup on cleanup
-  }
-}
-
-await sweepOrphanTempDirs()
 
 // Explicit Redis connection so we can log its lifecycle. Repeated reconnects
 // here (visible as "[redis] reconnecting") are the usual cause of the worker
@@ -235,9 +213,10 @@ const worker = new Worker(
     connection: connection as unknown as ConnectionOptions,
     concurrency: CONCURRENCY,
     // Analysis jobs (esbuild bundling, recursive dep resolution) can take
-    // several minutes for large packages. Default lock duration is 30s, which
-    // is too short and causes BullMQ to mark running jobs as stalled.
-    lockDuration: 300_000, // 5 minutes
+    // several minutes for large packages on slow filesystems. Must exceed the
+    // analyzer's install+bundle timeouts (150s + 90s) so a slow-but-progressing
+    // job never loses its lock, gets marked stalled, and runs twice.
+    lockDuration: 600_000, // 10 minutes
   },
 )
 

@@ -19,6 +19,10 @@ __unconfig*
 .env.local
 .env.*.local
 
+# Local compose override (personal; not committed)
+docker-compose.override.yml
+docker-compose.override.yaml
+
 # OS
 .DS_Store
 Thumbs.db

@@ -1,0 +1,82 @@
+# Full local stack: Postgres + Redis + web + worker.
+#
+#   docker compose up --build                      # full stack (this file + any override)
+#   docker compose -f docker-compose.yml up --build  # base only, ignore your override
+#
+# web and worker share one image and differ only by `command`. The web service
+# runs DB migrations on boot before serving.
+#
+# Note: postgres/redis are NOT published to the host (no port conflicts with
+# anything you run locally); the app reaches them over the compose network.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: deplens
+      POSTGRES_PASSWORD: deplens
+      POSTGRES_DB: deplens
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U deplens -d deplens']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: .
+    image: deplens:local
+    command: ['node', 'serve.mjs']
+    environment:
+      DATABASE_URL: postgresql://deplens:deplens@postgres:5432/deplens
+      REDIS_URL: redis://redis:6379
+      PORT: '3000'
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    build: .
+    image: deplens:local
+    command: ['node', '--import', 'tsx', 'worker/index.ts']
+    environment:
+      DATABASE_URL: postgresql://deplens:deplens@postgres:5432/deplens
+      REDIS_URL: redis://redis:6379
+      # 1 locally: concurrent esbuild bundles + cold-cache installs starve the
+      # container's CPU, which flaps the Redis connection and times out big
+      # installs. Raise it where there's more CPU headroom (e.g. EKS).
+      WORKER_CONCURRENCY: '1'
+      NPM_CACHE_DIR: /tmp/npm-cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:

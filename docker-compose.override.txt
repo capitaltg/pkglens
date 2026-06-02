@@ -1,0 +1,26 @@
+# Personal override (gitignored). Auto-merged by `docker compose up`.
+#
+# Use a Postgres running on the HOST instead of the compose `postgres` service.
+# host-gateway lets the container reach the host's localhost on Linux/WSL2.
+#
+# To run the full stack with the compose Postgres instead, ignore this file:
+#   docker compose -f docker-compose.yml up --build
+#
+# (The compose `postgres` service still starts when this override is active, but
+# the app won't use it. To skip it: `docker compose up --build redis web worker`.)
+
+services:
+  web:
+    environment:
+      DATABASE_URL: postgresql://deplens:deplens@host.docker.internal:5432/deplens
+    depends_on: !reset []
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+  postgres:
+    profiles: ["bundled-db"]
+  worker:
+    depends_on: !reset []
+    environment:
+      DATABASE_URL: postgresql://deplens:deplens@host.docker.internal:5432/deplens
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'

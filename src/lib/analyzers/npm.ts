@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -18,6 +18,33 @@ const execFileAsync = promisify(execFile)
 
 const NPM_REGISTRY = 'https://registry.npmjs.org'
 const NPM_DOWNLOADS = 'https://api.npmjs.org/downloads/point/last-week'
+
+// Shared, pod-lifetime install dir + npm cache, reused across all analyses
+// instead of a throwaway dir per job. Each `npm install` reconciles
+// node_modules to the current package (extraneous deps are pruned), and the
+// cache makes repeat installs warm and avoids re-hitting the registry. Both
+// live under tmpdir(), so in k8s they sit in the pod's existing emptyDir and
+// reset when the pod restarts.
+const WORK_DIR = process.env.DEPLENS_WORK_DIR ?? join(tmpdir(), 'deplens-work')
+const NPM_CACHE_DIR =
+  process.env.NPM_CACHE_DIR ?? join(tmpdir(), 'deplens-cache')
+
+// One shared dir isn't safe for concurrent installs, so serialize the
+// install+bundle section. Other per-job work (dep tree, OSV) still overlaps.
+//
+// IMPORTANT: this lock is per-process, so it assumes a single worker process
+// writes WORK_DIR. That holds in k8s (one worker process per pod, each with its
+// own /tmp emptyDir). Do NOT run multiple worker processes against a shared
+// WORK_DIR filesystem; give each its own via DEPLENS_WORK_DIR if you must.
+let installChain: Promise<unknown> = Promise.resolve()
+function runExclusive<T>(task: () => Promise<T>): Promise<T> {
+  const run = installChain.then(task, task)
+  installChain = run.then(
+    () => {},
+    () => {},
+  )
+  return run
+}
 
 // ─── Public entry point ──────────────────────────────────────────────────────
 
@@ -243,44 +270,41 @@ function isNodeBuiltinBundleError(err: unknown): boolean {
   )
 }
 
-async function bundlePackage(
+function bundlePackage(
   name: string,
   version: string,
   peerDeps: string[] = [],
 ): Promise<SizeData> {
-  const tmpDir = await mkdtemp(join(tmpdir(), 'deplens-npm-'))
+  // Serialized: the shared WORK_DIR holds one package's node_modules at a time.
+  return runExclusive(async () => {
+    await mkdir(WORK_DIR, { recursive: true })
 
-  try {
-    // Write a minimal package.json so npm install works
+    // Overwrite the manifest with just this package; `npm install` reconciles
+    // node_modules to match (installing this package, pruning the previous one).
     await writeFile(
-      join(tmpDir, 'package.json'),
+      join(WORK_DIR, 'package.json'),
       JSON.stringify({ private: true, dependencies: { [name]: version } }),
     )
 
-    // Install the package (no scripts for safety). Keep npm's cache inside the
-    // temp dir (--cache) so it's removed with it in the `finally` below, rather
-    // than accumulating forever in a shared cache and filling the disk.
+    // Install (no scripts for safety) against the shared, pod-lifetime cache so
+    // repeat/overlapping deps are warm. Generous timeout: a cold-cache install
+    // of a large tree (e.g. many @radix-ui packages) on a slow container
+    // filesystem can take minutes.
     await execFileAsync(
       'npm',
-      [
-        'install',
-        '--ignore-scripts',
-        '--no-audit',
-        '--cache',
-        join(tmpDir, '.npm-cache'),
-      ],
-      { cwd: tmpDir, timeout: 60_000 },
+      ['install', '--ignore-scripts', '--no-audit', '--cache', NPM_CACHE_DIR],
+      { cwd: WORK_DIR, timeout: 150_000 },
     )
 
     // Write an entry point that just re-exports the package
-    const entry = join(tmpDir, 'entry.js')
+    const entry = join(WORK_DIR, 'entry.js')
     await writeFile(entry, `export * from ${JSON.stringify(name)};\n`)
 
     // Merge always-external list with this package's declared peer dependencies
     const externals = [...new Set([...ALWAYS_EXTERNAL, ...peerDeps])]
 
     // Bundle with esbuild
-    const bundleOut = join(tmpDir, 'bundle.js')
+    const bundleOut = join(WORK_DIR, 'bundle.js')
     try {
       await execFileAsync(
         'npx',
@@ -294,7 +318,7 @@ async function bundlePackage(
           `--outfile=${bundleOut}`,
           ...externals.map((e) => `--external:${e}`),
         ],
-        { cwd: tmpDir, timeout: 30_000 },
+        { cwd: WORK_DIR, timeout: 90_000 },
       )
     } catch (err) {
       // A package that imports Node built-ins (fs, crypto, …) has no browser
@@ -306,16 +330,12 @@ async function bundlePackage(
       throw err
     }
 
-    const { readFile } = await import('node:fs/promises')
     const bundleBytes = await readFile(bundleOut)
-
     const minifiedBytes = bundleBytes.length
     const gzipBytes = await gzipSize(bundleBytes)
 
     return { minifiedBytes, gzipBytes }
-  } finally {
-    await rm(tmpDir, { recursive: true, force: true })
-  }
+  })
 }
 
 async function gzipSize(buf: Buffer): Promise<number> {

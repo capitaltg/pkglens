@@ -11,5 +11,7 @@ dist
 npm-debug.log*
 Dockerfile
 .dockerignore
+docker-compose*.yml
+docker-compose*.yaml
 k8s
 README.md
