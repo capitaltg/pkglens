@@ -1,4 +1,4 @@
-import { queryOsvHistorical } from '#/lib/osv'
+import { queryOsvHistorical, type OsvHistoricalResult } from '#/lib/osv'
 import type {
   DepNode,
   MaintenanceData,
@@ -37,16 +37,7 @@ export async function analyzeMavenPackage(
     fetchPomDeps(groupId, artifactId, version),
   ])
 
-  const vulnerabilities: Vulnerability[] = osvResults.map((r) => ({
-    id: r.id,
-    summary: r.summary,
-    severity: r.severity,
-    aliases: r.aliases,
-    publishedAt: r.publishedAt,
-    isActive: r.isActive,
-    fixedAt: undefined, // Maven doesn't have a convenient fix-date API
-    fixedVersion: r.fixedVersions[0],
-  }))
+  const vulnerabilities = mapMavenVulns(osvResults)
 
   const maintenanceData: MaintenanceData = {
     lastPublishedAt: doc.timestamp
@@ -59,6 +50,28 @@ export async function analyzeMavenPackage(
   }
 
   return { version, sizeData, depTree, vulnerabilities, maintenanceData }
+}
+
+/** Map OSV results to Vulnerability. Maven has no convenient fix-date API. */
+function mapMavenVulns(osvResults: OsvHistoricalResult[]): Vulnerability[] {
+  return osvResults.map((r) => ({
+    id: r.id,
+    summary: r.summary,
+    severity: r.severity,
+    aliases: r.aliases,
+    publishedAt: r.publishedAt,
+    isActive: r.isActive,
+    fixedAt: undefined,
+    fixedVersion: r.fixedVersions[0],
+  }))
+}
+
+/** Re-query vulnerabilities only (OSV, no JAR sizing) for the security refresh. */
+export async function getMavenVulnerabilities(
+  name: string,
+  version: string,
+): Promise<Vulnerability[]> {
+  return mapMavenVulns(await queryOsvHistorical('maven', name, version))
 }
 
 // ─── Maven helpers ────────────────────────────────────────────────────────

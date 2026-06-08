@@ -1,12 +1,12 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { createGzip } from 'node:zlib'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { queryOsvHistorical } from '#/lib/osv'
+import { queryOsvHistorical, type OsvHistoricalResult } from '#/lib/osv'
 import type {
   DepNode,
   MaintenanceData,
@@ -18,6 +18,33 @@ const execFileAsync = promisify(execFile)
 
 const NPM_REGISTRY = 'https://registry.npmjs.org'
 const NPM_DOWNLOADS = 'https://api.npmjs.org/downloads/point/last-week'
+
+// Shared, pod-lifetime install dir + npm cache, reused across all analyses
+// instead of a throwaway dir per job. Each `npm install` reconciles
+// node_modules to the current package (extraneous deps are pruned), and the
+// cache makes repeat installs warm and avoids re-hitting the registry. Both
+// live under tmpdir(), so in k8s they sit in the pod's existing emptyDir and
+// reset when the pod restarts.
+const WORK_DIR = process.env.DEPLENS_WORK_DIR ?? join(tmpdir(), 'deplens-work')
+const NPM_CACHE_DIR =
+  process.env.NPM_CACHE_DIR ?? join(tmpdir(), 'deplens-cache')
+
+// One shared dir isn't safe for concurrent installs, so serialize the
+// install+bundle section. Other per-job work (dep tree, OSV) still overlaps.
+//
+// IMPORTANT: this lock is per-process, so it assumes a single worker process
+// writes WORK_DIR. That holds in k8s (one worker process per pod, each with its
+// own /tmp emptyDir). Do NOT run multiple worker processes against a shared
+// WORK_DIR filesystem; give each its own via DEPLENS_WORK_DIR if you must.
+let installChain: Promise<unknown> = Promise.resolve()
+function runExclusive<T>(task: () => Promise<T>): Promise<T> {
+  const run = installChain.then(task, task)
+  installChain = run.then(
+    () => {},
+    () => {},
+  )
+  return run
+}
 
 // ─── Public entry point ──────────────────────────────────────────────────────
 
@@ -75,8 +102,17 @@ export async function analyzeNpmPackage(
     queryOsvHistorical('npm', name, version),
   ])
 
-  // Convert OSV results to Vulnerability, looking up fixedAt from the registry time map
-  const vulnerabilities: Vulnerability[] = osvResults.map((r) => {
+  const vulnerabilities = mapNpmVulns(osvResults, timeMap)
+
+  return { version, sizeData, depTree, vulnerabilities, maintenanceData }
+}
+
+/** Map OSV results to Vulnerability, enriching fixedAt from the registry time map. */
+function mapNpmVulns(
+  osvResults: OsvHistoricalResult[],
+  timeMap?: Record<string, string>,
+): Vulnerability[] {
+  return osvResults.map((r) => {
     const earliestFix =
       r.fixedVersions.length > 0 && timeMap
         ? findEarliestFix(r.fixedVersions, timeMap)
@@ -92,8 +128,25 @@ export async function analyzeNpmPackage(
       fixedVersion: earliestFix?.version,
     }
   })
+}
 
-  return { version, sizeData, depTree, vulnerabilities, maintenanceData }
+/**
+ * Re-query just the vulnerabilities for a version — registry metadata + OSV
+ * only, no install or bundling. Used by the periodic security refresh so the
+ * permanent per-version cache still picks up newly-disclosed CVEs.
+ */
+export async function getNpmVulnerabilities(
+  name: string,
+  version: string,
+): Promise<Vulnerability[]> {
+  const [meta, osvResults] = await Promise.all([
+    fetchNpmMeta(name),
+    queryOsvHistorical('npm', name, version),
+  ])
+  return mapNpmVulns(
+    osvResults,
+    meta.time as Record<string, string> | undefined,
+  )
 }
 
 // ─── npm registry helpers ────────────────────────────────────────────────────
@@ -207,60 +260,82 @@ const ALWAYS_EXTERNAL = [
   '@remix-run/react',
 ]
 
-async function bundlePackage(
+/** True when esbuild failed only because the package imports Node built-ins. */
+function isNodeBuiltinBundleError(err: unknown): boolean {
+  const stderr = (err as { stderr?: unknown }).stderr
+  if (typeof stderr !== 'string') return false
+  return (
+    stderr.includes('is built into node') ||
+    stderr.includes('Are you trying to bundle for node')
+  )
+}
+
+function bundlePackage(
   name: string,
   version: string,
   peerDeps: string[] = [],
 ): Promise<SizeData> {
-  const tmpDir = await mkdtemp(join(tmpdir(), 'deplens-npm-'))
+  // Serialized: the shared WORK_DIR holds one package's node_modules at a time.
+  return runExclusive(async () => {
+    await mkdir(WORK_DIR, { recursive: true })
 
-  try {
-    // Write a minimal package.json so npm install works
+    // Overwrite the manifest with just this package; `npm install` reconciles
+    // node_modules to match (installing this package, pruning the previous one).
     await writeFile(
-      join(tmpDir, 'package.json'),
+      join(WORK_DIR, 'package.json'),
       JSON.stringify({ private: true, dependencies: { [name]: version } }),
     )
 
-    // Install the package (no scripts for safety)
-    await execFileAsync('npm', ['install', '--ignore-scripts', '--no-audit'], {
-      cwd: tmpDir,
-      timeout: 60_000,
-    })
+    // Install (no scripts for safety) against the shared, pod-lifetime cache so
+    // repeat/overlapping deps are warm. Generous timeout: a cold-cache install
+    // of a large tree (e.g. many @radix-ui packages) on a slow container
+    // filesystem can take minutes.
+    await execFileAsync(
+      'npm',
+      ['install', '--ignore-scripts', '--no-audit', '--cache', NPM_CACHE_DIR],
+      { cwd: WORK_DIR, timeout: 150_000 },
+    )
 
     // Write an entry point that just re-exports the package
-    const entry = join(tmpDir, 'entry.js')
+    const entry = join(WORK_DIR, 'entry.js')
     await writeFile(entry, `export * from ${JSON.stringify(name)};\n`)
 
     // Merge always-external list with this package's declared peer dependencies
     const externals = [...new Set([...ALWAYS_EXTERNAL, ...peerDeps])]
 
     // Bundle with esbuild
-    const bundleOut = join(tmpDir, 'bundle.js')
-    await execFileAsync(
-      'npx',
-      [
-        'esbuild',
-        entry,
-        '--bundle',
-        '--minify',
-        '--platform=browser',
-        '--format=esm',
-        `--outfile=${bundleOut}`,
-        ...externals.map((e) => `--external:${e}`),
-      ],
-      { cwd: tmpDir, timeout: 30_000 },
-    )
+    const bundleOut = join(WORK_DIR, 'bundle.js')
+    try {
+      await execFileAsync(
+        'npx',
+        [
+          'esbuild',
+          entry,
+          '--bundle',
+          '--minify',
+          '--platform=browser',
+          '--format=esm',
+          `--outfile=${bundleOut}`,
+          ...externals.map((e) => `--external:${e}`),
+        ],
+        { cwd: WORK_DIR, timeout: 90_000 },
+      )
+    } catch (err) {
+      // A package that imports Node built-ins (fs, crypto, …) has no browser
+      // bundle. Report it as server-side rather than failing the whole analysis
+      // (and retrying a deterministic failure 3×). Other esbuild errors are real.
+      if (isNodeBuiltinBundleError(err)) {
+        return { minifiedBytes: 0, gzipBytes: 0, serverOnly: true }
+      }
+      throw err
+    }
 
-    const { readFile } = await import('node:fs/promises')
     const bundleBytes = await readFile(bundleOut)
-
     const minifiedBytes = bundleBytes.length
     const gzipBytes = await gzipSize(bundleBytes)
 
     return { minifiedBytes, gzipBytes }
-  } finally {
-    await rm(tmpDir, { recursive: true, force: true })
-  }
+  })
 }
 
 async function gzipSize(buf: Buffer): Promise<number> {

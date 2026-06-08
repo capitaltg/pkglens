@@ -83,15 +83,26 @@ interface DimensionScores {
 function computeWeighted(
   profile: WeightProfile,
   scores: DimensionScores,
+  exclude?: ReadonlySet<keyof WeightProfile>,
 ): number {
-  return Math.round(
-    profile.security * scores.security +
-      profile.maintenance * scores.maintenance +
-      profile.popularity * scores.popularity +
-      profile.size * scores.size +
-      profile.typescript * scores.typescript +
-      profile.depHealth * scores.depHealth,
-  )
+  const keys: (keyof WeightProfile)[] = [
+    'security',
+    'maintenance',
+    'popularity',
+    'size',
+    'typescript',
+    'depHealth',
+  ]
+  let weightSum = 0
+  let acc = 0
+  for (const k of keys) {
+    if (exclude?.has(k)) continue
+    weightSum += profile[k]
+    acc += profile[k] * scores[k]
+  }
+  // Renormalize over the included weights so excluding a dimension doesn't just
+  // shrink the score. (Profiles sum to 1, so the no-exclude case is unchanged.)
+  return weightSum > 0 ? Math.round(acc / weightSum) : 0
 }
 
 export async function computeScoreData(
@@ -101,14 +112,21 @@ export async function computeScoreData(
   maintenanceData: MaintenanceData,
   depTree: DepNode[],
 ): Promise<ScoreData> {
-  // Size score (percentile vs. same ecosystem; heuristic fallback)
-  let sizeScore: number
-  try {
-    const percentile = await scoreSizePercentile(ecosystem, sizeData.gzipBytes)
-    sizeScore =
-      percentile === 50 ? scoreSizeHeuristic(sizeData.gzipBytes) : percentile
-  } catch {
-    sizeScore = scoreSizeHeuristic(sizeData.gzipBytes)
+  // Size score (percentile vs. same ecosystem; heuristic fallback). Server-side
+  // packages have no browser bundle, so size is omitted from the composite below.
+  const serverOnly = sizeData.serverOnly === true
+  let sizeScore = 0
+  if (!serverOnly) {
+    try {
+      const percentile = await scoreSizePercentile(
+        ecosystem,
+        sizeData.gzipBytes,
+      )
+      sizeScore =
+        percentile === 50 ? scoreSizeHeuristic(sizeData.gzipBytes) : percentile
+    } catch {
+      sizeScore = scoreSizeHeuristic(sizeData.gzipBytes)
+    }
   }
 
   // Security score (3-sub-component)
@@ -141,15 +159,20 @@ export async function computeScoreData(
     depHealth: depHealthScore,
   }
 
-  // Primary composite: backend profile for npm, ecosystem-specific otherwise
+  // Primary composite: backend profile for npm, ecosystem-specific otherwise.
+  // Server-side packages exclude the size dimension (no browser bundle).
+  const exclude = serverOnly
+    ? new Set<keyof WeightProfile>(['size'])
+    : undefined
   const profile =
     WEIGHT_PROFILES[ecosystem === 'npm' ? 'npm-backend' : ecosystem] ??
     WEIGHT_PROFILES['npm-backend']
-  const composite = computeWeighted(profile, scores)
+  const composite = computeWeighted(profile, scores, exclude)
 
-  // For npm: also compute frontend-weighted composite
+  // For npm: also compute frontend-weighted composite — but not for server-side
+  // packages, where a "frontend" score would be meaningless.
   const frontend =
-    ecosystem === 'npm'
+    ecosystem === 'npm' && !serverOnly
       ? (() => {
           const frontendComposite = computeWeighted(
             WEIGHT_PROFILES['npm-frontend'],

@@ -19,8 +19,9 @@ __unconfig*
 .env.local
 .env.*.local
 
-# Database
-drizzle/
+# Local compose override (personal; not committed)
+docker-compose.override.yml
+docker-compose.override.yaml
 
 # OS
 .DS_Store

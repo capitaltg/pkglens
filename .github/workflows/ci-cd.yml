@@ -1,0 +1,77 @@
+name: CI / CD
+
+# CI runs on every push. Deploy (build → push to ECR → restart deployments)
+# runs only when commits land on main.
+on:
+  push:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: dependency-lens
+  K8S_NAMESPACE: default
+  WEB_DEPLOYMENT: dependencylens
+  WORKER_DEPLOYMENT: deplens-worker
+
+jobs:
+  ci:
+    name: Lint · typecheck · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run test
+      - run: npm run build
+
+  deploy:
+    name: Build → ECR → restart deployments
+    needs: ci
+    # Only on a push to main (not PRs, not other branches).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required for OIDC role assumption
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure AWS credentials (OIDC assume-role)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::939273427551:role/github-actions-ci
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          # GitHub runners are amd64, so this builds natively (no QEMU).
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Configure kubectl for EKS
+        # Set the repo/org variable EKS_CLUSTER (Settings → Secrets and
+        # variables → Actions → Variables) to your cluster name.
+        run: aws eks update-kubeconfig --region "$AWS_REGION" --name ctg-prod-cluster-v2
+
+      - name: Restart deployments
+        run: |
+          kubectl -n "$K8S_NAMESPACE" rollout restart \
+            deployment/"$WEB_DEPLOYMENT" deployment/"$WORKER_DEPLOYMENT"

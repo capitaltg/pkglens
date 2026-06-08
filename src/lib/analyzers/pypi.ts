@@ -1,4 +1,4 @@
-import { queryOsvHistorical } from '#/lib/osv'
+import { queryOsvHistorical, type OsvHistoricalResult } from '#/lib/osv'
 import type {
   DepNode,
   MaintenanceData,
@@ -48,23 +48,7 @@ export async function analyzePypiPackage(
     queryOsvHistorical('pypi', name.toLowerCase(), version),
   ])
 
-  // Convert OSV results to Vulnerability, looking up fixedAt from PyPI releases
-  const vulnerabilities: Vulnerability[] = osvResults.map((r) => {
-    const earliestFix =
-      r.fixedVersions.length > 0
-        ? findEarliestPypiFix(r.fixedVersions, releases)
-        : undefined
-    return {
-      id: r.id,
-      summary: r.summary,
-      severity: r.severity,
-      aliases: r.aliases,
-      publishedAt: r.publishedAt,
-      isActive: r.isActive,
-      fixedAt: earliestFix?.date,
-      fixedVersion: earliestFix?.version,
-    }
-  })
+  const vulnerabilities = mapPypiVulns(osvResults, releases)
 
   // Build a shallow dep tree from install_requires
   const requiresDist = (info.requires_dist as string[] | null) ?? []
@@ -149,6 +133,42 @@ function findEarliestPypiFix(
     }
   }
   return earliest
+}
+
+/** Map OSV results to Vulnerability, enriching fixedAt from PyPI release dates. */
+function mapPypiVulns(
+  osvResults: OsvHistoricalResult[],
+  releases: Record<string, PypiBuildFile[]>,
+): Vulnerability[] {
+  return osvResults.map((r) => {
+    const earliestFix =
+      r.fixedVersions.length > 0
+        ? findEarliestPypiFix(r.fixedVersions, releases)
+        : undefined
+    return {
+      id: r.id,
+      summary: r.summary,
+      severity: r.severity,
+      aliases: r.aliases,
+      publishedAt: r.publishedAt,
+      isActive: r.isActive,
+      fixedAt: earliestFix?.date,
+      fixedVersion: earliestFix?.version,
+    }
+  })
+}
+
+/** Re-query vulnerabilities only (metadata + OSV, no sizing) for the security refresh. */
+export async function getPypiVulnerabilities(
+  name: string,
+  version: string,
+): Promise<Vulnerability[]> {
+  const [meta, osvResults] = await Promise.all([
+    fetchPypiMeta(name),
+    queryOsvHistorical('pypi', name.toLowerCase(), version),
+  ])
+  const releases = (meta.releases as Record<string, PypiBuildFile[]>) ?? {}
+  return mapPypiVulns(osvResults, releases)
 }
 
 function extractLastPublished(

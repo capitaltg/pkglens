@@ -12,9 +12,12 @@ import {
   type Vulnerability,
   type MaintenanceData,
 } from '#/db/schema'
-import { enqueueAnalysis } from './queue'
+import { enqueueAnalysis, enqueueSecurityRefresh } from './queue'
+import { resolveLatestVersion } from '#/lib/resolve-version'
 
-const SIX_HOURS_MS = 6 * 60 * 60 * 1000
+// Immutable data (size/tree/bundle) is cached forever; vulnerabilities are
+// re-queried in the background when a cached hit is older than this.
+const SECURITY_TTL_MS = 24 * 60 * 60 * 1000
 
 export interface AnalysisResponse {
   status: 'complete' | 'pending' | 'running' | 'failed'
@@ -35,6 +38,77 @@ export interface AnalysisResponse {
 
 const ecosystemSchema = z.enum(['npm', 'pypi', 'maven'])
 
+type JoinedRow = {
+  packages: typeof packages.$inferSelect
+  analysis_results: typeof analysisResults.$inferSelect
+}
+
+function buildData(row: JoinedRow): NonNullable<AnalysisResponse['data']> {
+  return {
+    packageName: row.packages.name,
+    ecosystem: row.packages.ecosystem,
+    version: row.packages.version,
+    analyzedAt: row.analysis_results.createdAt.toISOString(),
+    sizeData: row.analysis_results.sizeData,
+    depTree: row.analysis_results.depTree,
+    scoreData: row.analysis_results.scoreData,
+    vulnerabilities: row.analysis_results.vulnerabilities,
+    maintenanceData: row.analysis_results.maintenanceData,
+  }
+}
+
+/** Cached analysis for an exact version. Immutable, so a hit never expires. */
+async function loadCachedByVersion(
+  ecosystem: 'npm' | 'pypi' | 'maven',
+  name: string,
+  version: string,
+): Promise<JoinedRow | null> {
+  const rows = await db
+    .select()
+    .from(analysisResults)
+    .innerJoin(packages, eq(analysisResults.packageId, packages.id))
+    .where(
+      and(
+        eq(packages.ecosystem, ecosystem),
+        eq(packages.name, name),
+        eq(packages.version, version),
+      ),
+    )
+    .orderBy(desc(analysisResults.createdAt))
+    .limit(1)
+  return rows[0] ?? null
+}
+
+/** Kick off a background OSV refresh if the cached security data is stale. */
+function maybeRefreshSecurity(row: JoinedRow): void {
+  const ageMs =
+    Date.now() - new Date(row.analysis_results.securityRefreshedAt).getTime()
+  if (ageMs > SECURITY_TTL_MS) {
+    enqueueSecurityRefresh({
+      ecosystem: row.packages.ecosystem,
+      name: row.packages.name,
+      version: row.packages.version,
+    }).catch(() => {
+      // Background refresh — never fail the request on it.
+    })
+  }
+}
+
+/** Most recently analyzed result for a package, regardless of version. */
+async function loadLatestResult(
+  ecosystem: 'npm' | 'pypi' | 'maven',
+  name: string,
+): Promise<JoinedRow | null> {
+  const rows = await db
+    .select()
+    .from(analysisResults)
+    .innerJoin(packages, eq(analysisResults.packageId, packages.id))
+    .where(and(eq(packages.ecosystem, ecosystem), eq(packages.name, name)))
+    .orderBy(desc(analysisResults.createdAt))
+    .limit(1)
+  return rows[0] ?? null
+}
+
 export const getPackageAnalysis = createServerFn({ method: 'GET' })
   .inputValidator(
     z.object({
@@ -45,46 +119,26 @@ export const getPackageAnalysis = createServerFn({ method: 'GET' })
   .handler(async (ctx): Promise<AnalysisResponse> => {
     const { ecosystem, name } = ctx.data
 
-    // Check for a fresh cached result
-    const cached = await db
-      .select()
-      .from(analysisResults)
-      .innerJoin(packages, eq(analysisResults.packageId, packages.id))
-      .where(and(eq(packages.ecosystem, ecosystem), eq(packages.name, name)))
-      .orderBy(desc(analysisResults.createdAt))
-      .limit(1)
-
-    const row = cached[0]
-    if (row) {
-      const ageMs =
-        Date.now() - new Date(row.analysis_results.createdAt).getTime()
-
-      const response: AnalysisResponse = {
-        status: 'complete',
-        data: {
-          packageName: row.packages.name,
-          ecosystem: row.packages.ecosystem,
-          version: row.packages.version,
-          analyzedAt: row.analysis_results.createdAt.toISOString(),
-          sizeData: row.analysis_results.sizeData,
-          depTree: row.analysis_results.depTree,
-          scoreData: row.analysis_results.scoreData,
-          vulnerabilities: row.analysis_results.vulnerabilities,
-          maintenanceData: row.analysis_results.maintenanceData,
-        },
+    // Resolve the latest published version, then check the per-version cache.
+    // A published version is immutable, so a hit is served permanently — no TTL.
+    const version = await resolveLatestVersion(ecosystem, name)
+    if (version) {
+      const row = await loadCachedByVersion(ecosystem, name, version)
+      if (row) {
+        maybeRefreshSecurity(row)
+        return { status: 'complete', data: buildData(row) }
       }
-
-      // Trigger background refresh if stale but still serve cached data
-      if (ageMs > SIX_HOURS_MS) {
-        enqueueAnalysis({ ecosystem, name }).catch(() => {
-          // Background refresh — ignore errors
-        })
+    } else {
+      // Couldn't resolve (registry down / unknown package) — serve any cached
+      // result rather than forcing a recompute.
+      const row = await loadLatestResult(ecosystem, name)
+      if (row) {
+        maybeRefreshSecurity(row)
+        return { status: 'complete', data: buildData(row) }
       }
-
-      return response
     }
 
-    // No cache — enqueue and return pending
+    // Cache miss — enqueue an analysis and report pending.
     const job = await enqueueAnalysis({ ecosystem, name })
     return { status: 'pending', jobId: job.id }
   })
@@ -107,9 +161,11 @@ export const getJobStatus = createServerFn({ method: 'GET' })
     }
 
     if (job.status === 'complete') {
-      return getPackageAnalysis({
-        data: { ecosystem: job.ecosystem, name: job.name },
-      })
+      // The worker just wrote this version's row; return it directly without
+      // re-resolving "latest" on every poll.
+      const row = await loadLatestResult(job.ecosystem, job.name)
+      if (row) return { status: 'complete', data: buildData(row) }
+      return { status: 'failed', error: 'Result not found' }
     }
 
     return { status: job.status }

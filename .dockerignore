@@ -1,0 +1,17 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.local
+.env.*.local
+*.log
+.vscode
+.cursorrules
+npm-debug.log*
+Dockerfile
+.dockerignore
+docker-compose*.yml
+docker-compose*.yaml
+k8s
+README.md
