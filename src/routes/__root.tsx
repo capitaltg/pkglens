@@ -6,6 +6,13 @@ import Header from '../components/Header'
 
 import appCss from '../styles.css?url'
 
+// In dev, Vite serves `/src/styles.css` as a JS module (text/javascript) that
+// injects the styles at runtime, so the browser rejects the <link> below as a
+// stylesheet and the page paints unstyled until hydration. The `?direct` query
+// makes Vite serve real text/css, so the stylesheet is render-blocking in dev
+// too. In production `?url` already resolves to a hashed .css asset.
+const appCssHref = import.meta.env.DEV ? `${appCss}?direct` : appCss
+
 const THEME_INIT_SCRIPT = `(function(){try{var stored=window.localStorage.getItem('theme');var mode=(stored==='light'||stored==='dark'||stored==='auto')?stored:'auto';var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var resolved=mode==='auto'?(prefersDark?'dark':'light'):mode;var root=document.documentElement;root.classList.remove('light','dark');root.classList.add(resolved);if(mode==='auto'){root.removeAttribute('data-theme')}else{root.setAttribute('data-theme',mode)}root.style.colorScheme=resolved;}catch(e){}})();`
 
 export const Route = createRootRoute({
@@ -25,7 +32,7 @@ export const Route = createRootRoute({
     links: [
       {
         rel: 'stylesheet',
-        href: appCss,
+        href: appCssHref,
       },
     ],
   }),
