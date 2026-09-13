@@ -124,7 +124,7 @@ Results are cached for 6 hours and refreshed in the background on subsequent vis
 
 ```bash
 npm run dev:all            # Everything: services, migrations, web + worker
-npm run dev:services       # Just start Postgres + Redis in Docker
+npm run dev:services       # Prepare backing services only (start + migrate)
 npm run dev:services:down  # Stop them (add -v to drop the volume)
 npm run build        # Production build
 npm run test         # Run tests

@@ -26,6 +26,11 @@ import net from 'node:net'
 const COMPOSE_FILE = 'docker-compose.dev.yml'
 const WEB_PORT = process.env.PORT ?? '3000'
 
+// `npm run dev:services` runs this same script so the containers are
+// configured from DATABASE_URL and an already-running server is respected.
+// Starting compose directly would ignore both.
+const SERVICES_ONLY = process.argv.includes('--services-only')
+
 // ─── Output helpers ──────────────────────────────────────────────────────────
 
 const useColor = process.stdout.isTTY && !process.env.NO_COLOR
@@ -107,6 +112,30 @@ function canConnect({ host, port }, timeout = 1500) {
     socket.once('timeout', () => done(false))
     socket.once('error', () => done(false))
   })
+}
+
+/**
+ * Actually connect and run a query.
+ *
+ * A TCP probe only proves *something* is listening. It still succeeds when the
+ * server is up but the database in DATABASE_URL does not exist, which then
+ * fails later as a confusing query error rather than a setup problem.
+ */
+async function checkDatabase(url) {
+  const { default: pg } = await import('pg')
+  const client = new pg.Client({
+    connectionString: url,
+    connectionTimeoutMillis: 4000,
+  })
+  try {
+    await client.connect()
+    await client.query('select 1')
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, message: err.message }
+  } finally {
+    await client.end().catch(() => {})
+  }
 }
 
 async function waitFor(target, label, attempts = 40) {
@@ -258,7 +287,26 @@ async function main() {
     if (!redisReady)
       die(`Redis never became reachable at ${redis.host}:${redis.port}`)
     ok('Postgres and Redis are up')
+  } else {
+    // Both already listening. Starting the compose stack now would bind the
+    // same ports; the existing server keeps winning `localhost` and the
+    // containers sit there shadowed and unused.
+    warn('Using the servers already running — not starting containers')
   }
+
+  const db = await checkDatabase(DATABASE_URL)
+  if (!db.ok) {
+    const dbName = new URL(DATABASE_URL).pathname.replace(/^\//, '')
+    die(
+      `Connected to ${pg.host}:${pg.port}, but the database is not usable: ${db.message}`,
+      /does not exist/i.test(db.message)
+        ? `Create it, then re-run:\n\n  createdb ${dbName}\n\nOr point DATABASE_URL at a database that exists.`
+        : 'Check DATABASE_URL in .env.local.',
+    )
+  }
+  ok(
+    `Database "${new URL(DATABASE_URL).pathname.replace(/^\//, '')}" is reachable`,
+  )
 
   step('Applying migrations')
   try {
@@ -267,8 +315,20 @@ async function main() {
   } catch {
     die(
       'Migrations failed.',
-      `Check that ${pg.host}:${pg.port} has the database from DATABASE_URL, then re-run.`,
+      'If this database predates the current migration files, its history is\n' +
+        'out of sync. `npm run db:push` will sync the schema directly (dev only).',
     )
+  }
+
+  if (SERVICES_ONLY) {
+    console.log(
+      `\n${bold('Services are ready.')} Start the app with:\n` +
+        `\n  ${bold('npm run dev:all')}   ${dim('(web + worker together — recommended)')}\n` +
+        `\n${dim('Running `npm run dev` alone starts only the web server. Analysis jobs')}\n` +
+        `${dim('will queue with nothing to consume them, so results never arrive —')}\n` +
+        `${dim('run `npm run worker` in a second terminal if you go that route.')}\n`,
+    )
+    return
   }
 
   step('Starting web server and worker')
