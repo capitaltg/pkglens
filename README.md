@@ -2,7 +2,39 @@
 
 Analyze the true cost of any dependency across ecosystems. A free, open-source alternative to bundlephobia that adds contextual health scoring, dependency tree attribution, security analysis via OSV, and support for npm, PyPI, and Maven.
 
-## Local setup
+## Quick start
+
+```bash
+npm install
+cp .env.example .env.local
+npm run dev:all
+```
+
+That is everything. `npm run dev:all` will:
+
+1. Check that Postgres and Redis are reachable — and if they are not, start them
+   with Docker (`docker-compose.dev.yml`) using the credentials from your
+   `DATABASE_URL`, waiting until they report healthy.
+2. Apply any pending database migrations.
+3. Run the **web server and the analysis worker together**, with prefixed output.
+   Ctrl-C stops both.
+
+The app comes up at [http://localhost:3000](http://localhost:3000) (set `PORT` to
+change it).
+
+> Running the worker is not optional. It is what consumes analysis jobs — start
+> the web server alone and every search queues a job that nothing will pick up,
+> leaving the page waiting on a result that never arrives.
+
+If you already run Postgres and Redis natively, `dev:all` detects them and leaves
+them alone; Docker is only a fallback.
+
+---
+
+## Manual setup
+
+Prefer to run each piece yourself, or not use Docker at all? The steps below are
+what `dev:all` automates.
 
 ### 1. Install PostgreSQL and Redis
 
@@ -60,7 +92,8 @@ npm run db:push
 
 ### 6. Start the services
 
-You need two processes running simultaneously — open two terminal windows:
+You need two processes running simultaneously — open two terminal windows.
+(Or skip this and run `npm run dev:all`, which starts both in one terminal.)
 
 **Terminal 1 — web server:**
 
@@ -90,6 +123,9 @@ Results are cached for 6 hours and refreshed in the background on subsequent vis
 ## Other commands
 
 ```bash
+npm run dev:all            # Everything: services, migrations, web + worker
+npm run dev:services       # Just start Postgres + Redis in Docker
+npm run dev:services:down  # Stop them (add -v to drop the volume)
 npm run build        # Production build
 npm run test         # Run tests
 npm run lint         # ESLint
