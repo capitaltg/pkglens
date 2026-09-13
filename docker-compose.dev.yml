@@ -1,0 +1,50 @@
+# Local development services only — Postgres and Redis.
+#
+# The app itself is NOT run here: `npm run dev:all` runs the web server and
+# worker on the host so you keep hot reload. See docker-compose.yml for the
+# full containerised stack used to verify production builds.
+#
+# You do not need to invoke this directly. `npm run dev:all` starts it
+# automatically if Postgres or Redis is not already reachable, passing the
+# credentials from your DATABASE_URL so the container matches .env.local.
+#
+#   npm run dev:services       start just these
+#   npm run dev:services:down  stop them (add -v to also drop the volume)
+
+name: deplens-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: deplens-dev-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-deplens}
+      # Local-only convenience: lets a credential-free DATABASE_URL such as
+      # postgresql://localhost:5432/deplens connect. Never use this in
+      # anything reachable from outside your machine.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - deplens_dev_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: deplens-dev-redis
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  deplens_dev_postgres:
