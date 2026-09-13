@@ -8,7 +8,7 @@
 # automatically if Postgres or Redis is not already reachable, passing the
 # credentials from your DATABASE_URL so the container matches .env.local.
 #
-#   npm run dev:services       start just these
+#   npm run dev:services       prepare services only (start + migrate)
 #   npm run dev:services:down  stop them (add -v to also drop the volume)
 
 name: deplens-dev
