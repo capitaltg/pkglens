@@ -333,6 +333,11 @@ function bundlePackage(
           '--minify',
           '--platform=browser',
           '--format=esm',
+          // Some packages publish untranspiled JSX in .js files (gatsby does).
+          // esbuild only enables the JSX extension for .jsx/.tsx by default, so
+          // without this they fail to parse — masking the real reason a package
+          // cannot be bundled for the browser.
+          '--loader:.js=jsx',
           `--outfile=${bundleOut}`,
           ...externals.map((e) => `--external:${e}`),
         ],
