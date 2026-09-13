@@ -260,6 +260,25 @@ const ALWAYS_EXTERNAL = [
   '@remix-run/react',
 ]
 
+/**
+ * esbuild `--external` list for measuring `name`.
+ *
+ * ALWAYS_EXTERNAL names host frameworks a *dependent* should not bundle. When
+ * one of them is itself the subject of the analysis, externalizing it makes
+ * esbuild emit nothing but a re-export stub, and the reported size is the size
+ * of that stub — react measured 20 B, next 19 B, gatsby 21 B. So the package
+ * under measurement is always dropped, along with its own subpaths
+ * (react/jsx-runtime), which would otherwise keep deep imports external.
+ */
+export function buildExternals(
+  name: string,
+  peerDeps: string[] = [],
+): string[] {
+  return [...new Set([...ALWAYS_EXTERNAL, ...peerDeps])].filter(
+    (e) => e !== name && !e.startsWith(`${name}/`),
+  )
+}
+
 /** True when esbuild failed only because the package imports Node built-ins. */
 function isNodeBuiltinBundleError(err: unknown): boolean {
   const stderr = (err as { stderr?: unknown }).stderr
@@ -300,8 +319,7 @@ function bundlePackage(
     const entry = join(WORK_DIR, 'entry.js')
     await writeFile(entry, `export * from ${JSON.stringify(name)};\n`)
 
-    // Merge always-external list with this package's declared peer dependencies
-    const externals = [...new Set([...ALWAYS_EXTERNAL, ...peerDeps])]
+    const externals = buildExternals(name, peerDeps)
 
     // Bundle with esbuild
     const bundleOut = join(WORK_DIR, 'bundle.js')
