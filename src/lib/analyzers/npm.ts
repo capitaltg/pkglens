@@ -320,6 +320,22 @@ const esbuildBinary = (() => {
 })()
 
 /**
+ * Entry point used to measure a package's full public surface.
+ *
+ * This was `export * from "<pkg>"`, which does NOT re-export a default export.
+ * A package whose only export is default — mitt, tiny-invariant — therefore
+ * bundled to nothing and measured ~20 bytes, the size of an empty ESM stub.
+ * Measured against bundlephobia, mitt scored 0.07x and tiny-invariant 0.10x.
+ *
+ * Importing the namespace and re-exporting it keeps every export, default
+ * included, live through tree-shaking. The same packages then scored 1.00x and
+ * 1.23x.
+ */
+export function buildEntrySource(name: string): string {
+  return `import * as pkg from ${JSON.stringify(name)};\nexport default pkg;\n`
+}
+
+/**
  * esbuild `--external` list for measuring `name`.
  *
  * ALWAYS_EXTERNAL names host frameworks a *dependent* should not bundle. When
@@ -374,9 +390,8 @@ function bundlePackage(
       { cwd: WORK_DIR, timeout: 150_000 },
     )
 
-    // Write an entry point that just re-exports the package
     const entry = join(WORK_DIR, 'entry.js')
-    await writeFile(entry, `export * from ${JSON.stringify(name)};\n`)
+    await writeFile(entry, buildEntrySource(name))
 
     const externals = buildExternals(name, peerDeps)
 
