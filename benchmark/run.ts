@@ -18,11 +18,25 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { analyzeNpmPackage } from '#/lib/analyzers/npm'
 import { fetchPackument, resolveVersion } from '#/lib/analyzers/npm-registry'
 import { filterCorpus, type CorpusEntry } from './corpus.ts'
+
+// Use a work directory of our own.
+//
+// The analyzer installs each package into a single shared WORK_DIR, guarded by
+// a lock that is only held *within one process*. A running worker
+// (`npm run dev:all`) reconciles that directory for its own jobs, so a
+// benchmark sharing it silently measures whatever the worker installed last —
+// producing a plausible-looking but wrong snapshot, with no error.
+//
+// Setting this before importing the analyzer removes the collision rather than
+// trying to detect it. The import must be dynamic: ESM evaluates static imports
+// before any module body, so assigning the variable up here would be too late.
+process.env.DEPLENS_WORK_DIR ??= join(tmpdir(), 'deplens-benchmark-work')
+const { analyzeNpmPackage } = await import('#/lib/analyzers/npm')
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SNAPSHOT_PATH = join(HERE, 'snapshot.json')

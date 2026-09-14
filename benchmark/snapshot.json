@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T01:12:42.452Z",
+  "generatedAt": "2026-09-14T13:31:23.410Z",
   "results": {
     "nanoid": {
       "version": "6.0.1",
@@ -33,7 +33,7 @@
     },
     "classnames": {
       "version": "2.5.1",
-      "gzip": 786,
+      "gzip": 655,
       "outcome": "compared"
     },
     "uuid": {
@@ -53,17 +53,17 @@
     },
     "react": {
       "version": "19.3.0",
-      "gzip": 3414,
+      "gzip": 3237,
       "outcome": "compared"
     },
     "react-dom": {
       "version": "19.3.0",
-      "gzip": 1925,
+      "gzip": 1748,
       "outcome": "compared"
     },
     "vue": {
       "version": "3.5.42",
-      "gzip": 11241,
+      "gzip": 11074,
       "outcome": "compared"
     },
     "preact": {
@@ -83,7 +83,7 @@
     },
     "lodash": {
       "version": "4.18.1",
-      "gzip": 26788,
+      "gzip": 26558,
       "outcome": "compared"
     },
     "axios": {
@@ -143,22 +143,22 @@
     },
     "swr": {
       "version": "2.5.1",
-      "gzip": 6547,
+      "gzip": 6348,
       "outcome": "compared"
     },
     "ky": {
       "version": "2.1.0",
-      "gzip": 9120,
+      "gzip": 9039,
       "outcome": "compared"
     },
     "@mui/material": {
       "version": "9.4.0",
-      "gzip": 165870,
+      "gzip": 165603,
       "outcome": "compared"
     },
     "antd": {
-      "version": "6.6.3",
-      "gzip": 486977,
+      "version": "6.6.4",
+      "gzip": 487316,
       "outcome": "compared"
     },
     "@chakra-ui/react": {
@@ -168,7 +168,7 @@
     },
     "react-bootstrap": {
       "version": "2.10.10",
-      "gzip": 44706,
+      "gzip": 44575,
       "outcome": "compared"
     },
     "@radix-ui/react-dialog": {
@@ -188,7 +188,7 @@
     },
     "react-select": {
       "version": "5.10.2",
-      "gzip": 31286,
+      "gzip": 31080,
       "outcome": "compared"
     },
     "react-day-picker": {
@@ -202,8 +202,8 @@
       "outcome": "compared"
     },
     "lucide-react": {
-      "version": "1.45.0",
-      "gzip": 194774,
+      "version": "1.46.0",
+      "gzip": 186361,
       "outcome": "compared"
     },
     "react-icons": {
@@ -213,7 +213,7 @@
     },
     "@headlessui/react": {
       "version": "2.2.10",
-      "gzip": 68704,
+      "gzip": 68568,
       "outcome": "compared"
     },
     "react-hook-form": {
@@ -223,17 +223,17 @@
     },
     "@tanstack/react-table": {
       "version": "9.2.4",
-      "gzip": 33706,
+      "gzip": 33482,
       "outcome": "compared"
     },
     "three": {
       "version": "0.186.0",
-      "gzip": 190389,
+      "gzip": 190271,
       "outcome": "compared"
     },
     "chart.js": {
       "version": "4.5.1",
-      "gzip": 70741,
+      "gzip": 70532,
       "outcome": "compared"
     },
     "d3": {
@@ -243,7 +243,7 @@
     },
     "moment": {
       "version": "2.30.1",
-      "gzip": 20124,
+      "gzip": 20016,
       "outcome": "compared"
     },
     "pdfjs-dist": {
@@ -253,7 +253,7 @@
     },
     "echarts": {
       "version": "6.1.0",
-      "gzip": 383570,
+      "gzip": 382902,
       "outcome": "compared"
     },
     "plotly.js": {
@@ -322,7 +322,7 @@
       "outcome": "divergent-serveronly"
     },
     "bullmq": {
-      "version": "6.3.5",
+      "version": "6.3.6",
       "gzip": 0,
       "outcome": "divergent-serveronly"
     },
@@ -342,7 +342,7 @@
       "outcome": "compared"
     },
     "prisma": {
-      "version": "8.0.0-rc.14",
+      "version": "8.0.0-rc.15",
       "gzip": null,
       "outcome": "both-failed"
     },
@@ -372,17 +372,17 @@
       "outcome": "divergent-serveronly"
     },
     "nodemailer": {
-      "version": "10.0.9",
+      "version": "10.0.10",
       "gzip": 0,
       "outcome": "divergent-serveronly"
     },
     "webpack": {
-      "version": "5.110.3",
+      "version": "5.111.0",
       "gzip": 0,
       "outcome": "divergent-serveronly"
     },
     "rollup": {
-      "version": "4.63.2",
+      "version": "4.63.3",
       "gzip": 0,
       "outcome": "divergent-serveronly"
     },
@@ -418,7 +418,7 @@
     },
     "vitest": {
       "version": "5.0.0",
-      "gzip": 111316,
+      "gzip": 110980,
       "outcome": "compared"
     },
     "tsx": {
@@ -438,7 +438,7 @@
     },
     "@capitaltg/vero": {
       "version": "1.17.1",
-      "gzip": 94746,
+      "gzip": 94463,
       "outcome": "compared"
     },
     "@tanstack/react-query": {
@@ -453,12 +453,12 @@
     },
     "@octokit/rest": {
       "version": "22.0.1",
-      "gzip": 21520,
+      "gzip": 21284,
       "outcome": "compared"
     },
     "@sentry/browser": {
       "version": "10.74.0",
-      "gzip": 150592,
+      "gzip": 150509,
       "outcome": "compared"
     },
     "@aws-sdk/client-s3": {
@@ -468,7 +468,7 @@
     },
     "@emotion/react": {
       "version": "11.14.0",
-      "gzip": 8997,
+      "gzip": 8800,
       "outcome": "compared"
     },
     "@floating-ui/dom": {
@@ -508,12 +508,12 @@
     },
     "jquery": {
       "version": "4.0.0",
-      "gzip": 28238,
+      "gzip": 28059,
       "outcome": "compared"
     },
     "bluebird": {
       "version": "3.7.2",
-      "gzip": 24666,
+      "gzip": 23956,
       "outcome": "compared"
     },
     "request": {
