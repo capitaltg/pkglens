@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildExternals } from '../npm'
+import { buildEntrySource, buildExternals } from '../npm'
 
 describe('buildExternals', () => {
   it('keeps host frameworks external for an unrelated package', () => {
@@ -30,5 +30,21 @@ describe('buildExternals', () => {
 
   it('does not externalize a peer dep that is the package itself', () => {
     expect(buildExternals('zod', ['zod'])).not.toContain('zod')
+  })
+})
+
+describe('buildEntrySource', () => {
+  it('imports the namespace so default-only packages are measured', () => {
+    // Regression: `export * from "mitt"` re-exports nothing, because `export *`
+    // skips the default export. mitt bundled to 0 bytes.
+    const src = buildEntrySource('mitt')
+    expect(src).toContain('import * as pkg from "mitt"')
+    expect(src).toContain('export default pkg')
+    expect(src).not.toContain('export *')
+  })
+
+  it('quotes the specifier so scoped and odd names are safe', () => {
+    expect(buildEntrySource('@capitaltg/vero')).toContain('"@capitaltg/vero"')
+    expect(buildEntrySource('a"b')).toContain('"a\\"b"')
   })
 })
