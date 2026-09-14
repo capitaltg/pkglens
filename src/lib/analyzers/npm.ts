@@ -415,6 +415,15 @@ function bundlePackage(
           // without this they fail to parse — masking the real reason a package
           // cannot be bundled for the browser.
           '--loader:.js=jsx',
+          // Do not count license banners toward bundle size. esbuild preserves
+          // `/*! ... */` comments by default, but real toolchains (webpack and
+          // terser) extract them to a separate .LICENSE.txt, so they are not in
+          // the bundle a user downloads. Including them overstated size by a
+          // roughly fixed ~130-230 B gzip — 16% of a small package like
+          // classnames, 0.07% of three. The bundle here is measured and
+          // discarded, never distributed, so nothing is being stripped from
+          // shipped code.
+          '--legal-comments=none',
           `--outfile=${bundleOut}`,
           ...externals.map((e) => `--external:${e}`),
         ],
