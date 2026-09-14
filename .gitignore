@@ -45,3 +45,7 @@ pnpm-debug.log*
 
 # Test coverage
 coverage/
+
+# benchmark artifacts
+benchmark/.cache/
+benchmark/last-run.json
