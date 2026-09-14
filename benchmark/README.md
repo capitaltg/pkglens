@@ -84,6 +84,33 @@ Filter with `--tag`, e.g. `npm run benchmark -- --tag tiny --tag esm`.
 
 The snapshot deliberately stores **our** numbers, not bundlephobia's. Theirs can change when they upgrade webpack, and we do not want that to look like our regression.
 
+## The fixed-cost floor on tiny packages
+
+esbuild emits a block of CommonJS interop helpers — measured at ~590 B against a
+trivial `module.exports = 1`. Measuring a package in isolation charges that
+entire fixed cost to it, while a real application emits the helpers once and
+shares them across every CJS dependency.
+
+For anything of consequence this is noise. For `left-pad` and `classnames` it is
+most of the reported difference, which is why both sit above tolerance even
+after license banners were excluded. It is a property of measuring one package
+alone, not an error, and correcting for it by subtracting a baseline would be
+misleading in the other direction.
+
+## Isolation from the worker
+
+The runner sets its own `DEPLENS_WORK_DIR` before loading the analyzer.
+
+This matters. The analyzer installs into a single shared work directory guarded
+by a lock held only _within one process_. A running worker (`npm run dev:all`)
+reconciles that directory for its own jobs, so a benchmark sharing it would
+measure whatever the worker installed last — a plausible but wrong snapshot,
+with no error to show for it. That failure already happened once during
+development and looked convincingly like a code bug.
+
+Verified by running the benchmark while the worker was actively processing jobs:
+the two directories stayed independent and the run reported no drift.
+
 ## Etiquette
 
 bundlephobia is a free service. The runner is sequential, waits 1.5s between calls, and caches responses in `benchmark/.cache/` keyed by `name@version` — a published version is immutable, so a cached answer stays correct. The cache is gitignored.
@@ -115,12 +142,12 @@ Flagged for investigation, not known-good. The report prints the **minified**
 ratio alongside gzip, because when the two disagree sharply that is itself the
 finding:
 
-| package      | gzip ratio | minified ratio | reading                                 |
-| ------------ | ---------- | -------------- | --------------------------------------- |
-| `pino`       | 2.48x      | **1.09x**      | same content, gzip disagrees            |
-| `kleur`      | 0.46x      | **1.00x**      | same content, gzip disagrees            |
-| `classnames` | 1.66x      | 1.75x          | we genuinely bundle more                |
-| `left-pad`   | 1.72x      | —              | small; wrapper overhead is a real share |
+| package      | gzip ratio | minified ratio | reading                           |
+| ------------ | ---------- | -------------- | --------------------------------- |
+| `pino`       | 2.48x      | **1.09x**      | same content, gzip disagrees      |
+| `left-pad`   | 1.72x      | 2.01x          | tiny CJS; interop floor dominates |
+| `classnames` | 1.38x      | 1.52x          | tiny CJS; interop floor dominates |
+| `kleur`      | 0.46x      | **1.00x**      | same content, gzip disagrees      |
 
 **Where minified agrees and gzip does not, suspect the gzip figure rather than
 the bundle.** For `kleur`, bundlephobia reports 1,972 B minified and 2,039 B
@@ -129,8 +156,9 @@ median of 3.0:1. Our minified matches theirs to within 0.3%, which is good
 evidence we bundle the same content. `pino` has the same shape: minified within
 9%, gzip 2.5x apart.
 
-`classnames` is the one genuinely worth chasing — both sides compress normally
-(1.9:1 and 1.8:1), so the 1.75x is real extra content in our bundle.
+`classnames` and `left-pad` are explained by the interop floor below rather
+than by a bundling error; excluding license banners (#24) brought classnames
+from 1.66x to 1.38x and the remainder is fixed cost.
 
 **`monaco-editor` is the only `ours-failed`** — esbuild errors where
 bundlephobia succeeds. Not yet diagnosed.
