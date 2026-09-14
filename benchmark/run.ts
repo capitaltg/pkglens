@@ -278,9 +278,15 @@ function report(results: Result[]): { outliers: Result[] } {
     console.log(
       `\n─── Outliers (gzip ratio outside ${RATIO_MIN}–${RATIO_MAX}x) ───`,
     )
+    // Show the minified ratio alongside gzip. When the two disagree sharply
+    // that is itself the finding: pino's minified sizes matched within 9%
+    // while its gzip differed 2.5x, which points at what is being compressed
+    // rather than at what is being bundled.
     for (const r of [...outliers].sort((a, b) => b.gzipRatio - a.gzipRatio)) {
+      const min =
+        r.minRatio === null ? '     —' : `${String(r.minRatio).padStart(5)}x`
       console.log(
-        `  ${r.name.padEnd(26)} ours=${String(r.ourGzip).padStart(9)}  bp=${String(r.theirGzip).padStart(9)}  ${r.gzipRatio}x`,
+        `  ${r.name.padEnd(24)} gzip ${String(r.ourGzip).padStart(9)}/${String(r.theirGzip).padStart(9)} = ${String(r.gzipRatio).padStart(5)}x   minified ${min}`,
       )
     }
   }

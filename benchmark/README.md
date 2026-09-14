@@ -109,20 +109,31 @@ Of the 73 comparable packages, **67 fall within 0.75x–1.35x**, median **1.05x*
 
 **`moment` — 0.26x (ours 20 kB, bundlephobia 77 kB).** Same family of cause: bundlephobia's figure includes the bundled locale set; esbuild does not pull them in.
 
-## Open outliers (not yet explained)
+## Open outliers
 
-These are flagged for investigation, not known-good:
+Flagged for investigation, not known-good. The report prints the **minified**
+ratio alongside gzip, because when the two disagree sharply that is itself the
+finding:
 
-| package      | ratio | ours  | bundlephobia |
-| ------------ | ----- | ----- | ------------ |
-| `pino`       | 2.48x | 3,665 | 1,479        |
-| `left-pad`   | 1.72x | 486   | 283          |
-| `classnames` | 1.66x | 786   | 474          |
-| `kleur`      | 0.46x | 939   | 2,039        |
+| package      | gzip ratio | minified ratio | reading                                 |
+| ------------ | ---------- | -------------- | --------------------------------------- |
+| `pino`       | 2.48x      | **1.09x**      | same content, gzip disagrees            |
+| `kleur`      | 0.46x      | **1.00x**      | same content, gzip disagrees            |
+| `classnames` | 1.66x      | 1.75x          | we genuinely bundle more                |
+| `left-pad`   | 1.72x      | —              | small; wrapper overhead is a real share |
 
-`left-pad` and `classnames` are small enough that esbuild's ESM wrapper is a meaningful share of the total, so some inflation is expected — but 1.7x has not been confirmed as benign. `pino` is the most suspicious: it compared rather than reporting `serverOnly`, so we produced a browser bundle for it, and it is 2.5x bundlephobia's.
+**Where minified agrees and gzip does not, suspect the gzip figure rather than
+the bundle.** For `kleur`, bundlephobia reports 1,972 B minified and 2,039 B
+gzip — a gzip larger than the input it compresses, at 1.0:1, against a corpus
+median of 3.0:1. Our minified matches theirs to within 0.3%, which is good
+evidence we bundle the same content. `pino` has the same shape: minified within
+9%, gzip 2.5x apart.
 
-**`monaco-editor` is the only `ours-failed`** — esbuild errors where bundlephobia succeeds. Not yet diagnosed.
+`classnames` is the one genuinely worth chasing — both sides compress normally
+(1.9:1 and 1.8:1), so the 1.75x is real extra content in our bundle.
+
+**`monaco-editor` is the only `ours-failed`** — esbuild errors where
+bundlephobia succeeds. Not yet diagnosed.
 
 ## Known findings
 
