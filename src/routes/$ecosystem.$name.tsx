@@ -16,7 +16,9 @@ import type { DepNode } from '#/db/schema'
 import {
   getPackageAnalysis,
   getJobStatus,
+  getQuickAnalysis,
   type AnalysisResponse,
+  type QuickAnalysisResponse,
 } from '#/server/analysis'
 
 function countAllNodes(nodes: DepNode[]): number {
@@ -262,68 +264,285 @@ function SectionCard({
   )
 }
 
-// ─── Pending / error states ───────────────────────────────────────────────────
+// ─── Progressive (partial) analysis ──────────────────────────────────────────
 
-function PendingState({
-  jobId,
-  ecosystem,
-}: {
-  jobId: number
-  ecosystem: string
-}) {
-  const [status, setStatus] = useState<AnalysisResponse | null>(null)
+/** Placeholder for a value that is still being computed. */
+function Skeleton({ className }: { className: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        'animate-pulse rounded-md bg-[var(--line)] opacity-60',
+        className,
+      )}
+    />
+  )
+}
+
+/** How long to keep polling before telling the user it has stalled. */
+const POLL_TIMEOUT_MS = 6 * 60 * 1000
+const POLL_INTERVAL_MS = 3000
+const MAX_CONSECUTIVE_ERRORS = 5
+
+type PollState =
+  | { kind: 'working' }
+  | { kind: 'complete'; data: NonNullable<AnalysisResponse['data']> }
+  | { kind: 'failed'; error: string }
+  | { kind: 'stalled' }
+
+function useJobPolling(jobId: number): PollState {
+  const [state, setState] = useState<PollState>({ kind: 'working' })
 
   useEffect(() => {
+    if (!jobId) {
+      setState({ kind: 'failed', error: 'No analysis job was created.' })
+      return
+    }
+
     let cancelled = false
+    const deadline = Date.now() + POLL_TIMEOUT_MS
+    let consecutiveErrors = 0
 
     async function poll() {
       while (!cancelled) {
-        await new Promise((r) => setTimeout(r, 3000))
-        if (cancelled) break
-        const res = await getJobStatus({ data: { jobId } })
-        setStatus(res)
-        if (res.status === 'complete' || res.status === 'failed') break
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
+        if (cancelled) return
+
+        if (Date.now() > deadline) {
+          setState({ kind: 'stalled' })
+          return
+        }
+
+        try {
+          const res = await getJobStatus({ data: { jobId } })
+          consecutiveErrors = 0
+          if (cancelled) return
+
+          if (res.status === 'complete' && res.data) {
+            setState({ kind: 'complete', data: res.data })
+            return
+          }
+          if (res.status === 'failed') {
+            setState({ kind: 'failed', error: res.error ?? 'Analysis failed' })
+            return
+          }
+        } catch {
+          // A transient network failure should not kill the poll loop — but a
+          // persistent one means we are not going to learn anything more.
+          consecutiveErrors++
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            setState({ kind: 'stalled' })
+            return
+          }
+        }
       }
     }
 
-    poll()
+    void poll()
     return () => {
       cancelled = true
     }
   }, [jobId])
 
-  if (status?.status === 'complete' && status.data) {
-    return <AnalysisResult data={status.data} ecosystem={ecosystem} />
-  }
+  return state
+}
 
-  if (status?.status === 'failed') {
-    return (
-      <div
-        role="alert"
-        className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-      >
-        Analysis failed: {status.error}
-      </div>
-    )
-  }
-
+function ErrorNotice({ children }: { children: React.ReactNode }) {
   return (
     <div
-      role="status"
-      aria-live="polite"
-      aria-label="Analyzing package"
-      className="island-shell rounded-xl p-8 text-center"
+      role="alert"
+      className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
     >
+      {children}
+    </div>
+  )
+}
+
+/**
+ * Renders whatever is known while the queued job is still running.
+ *
+ * Maintenance, security and popularity arrive from metadata in seconds, so
+ * those panels render immediately. Bundle size needs an install that can take
+ * minutes; the score depends on size, so the grade is withheld rather than
+ * shown as a number that would visibly change once size lands.
+ */
+function ProgressiveAnalysis({
+  jobId,
+  ecosystem,
+  quick,
+}: {
+  jobId: number
+  ecosystem: string
+  quick: QuickAnalysisResponse | null
+}) {
+  const poll = useJobPolling(jobId)
+
+  if (poll.kind === 'complete') {
+    return <AnalysisResult data={poll.data} ecosystem={ecosystem} />
+  }
+  if (poll.kind === 'failed') {
+    return <ErrorNotice>Analysis failed: {poll.error}</ErrorNotice>
+  }
+
+  const meta = quick?.data?.maintenanceData
+  const vulns = quick?.data?.vulnerabilities
+  const activeCves = vulns?.filter((v) => v.isActive !== false).length
+  const sizeTitle = SIZE_CARD_TITLE[ecosystem] ?? 'Size'
+
+  return (
+    <div className="grid gap-4" aria-busy={poll.kind === 'working'}>
+      <p role="status" aria-live="polite" className="sr-only">
+        {poll.kind === 'stalled'
+          ? 'Analysis is taking longer than expected.'
+          : 'Measuring bundle size and dependency tree. Other results are shown below.'}
+      </p>
+
+      {poll.kind === 'stalled' && (
+        <ErrorNotice>
+          This analysis is taking longer than expected and may not complete.
+          Everything below was resolved from package metadata.{' '}
+          <a
+            href=""
+            onClick={(e) => {
+              e.preventDefault()
+              window.location.reload()
+            }}
+            className="font-semibold underline"
+          >
+            Retry
+          </a>
+        </ErrorNotice>
+      )}
+
+      {/* At-a-glance — grade and size are withheld until the job finishes */}
       <div
+        aria-label="Package at a glance"
+        className="island-shell overflow-hidden rounded-xl"
+      >
+        <div className="grid grid-cols-2 gap-px bg-[var(--line)] sm:grid-cols-4">
+          <PendingStat label="Quality">
+            <Skeleton className="h-20 w-20 rounded-2xl" />
+          </PendingStat>
+
+          <div className="flex flex-col items-center bg-[var(--surface)] px-5 py-6 text-center">
+            <div className="flex flex-1 items-center justify-center">
+              {activeCves === undefined ? (
+                <Skeleton className="h-10 w-12" />
+              ) : (
+                <span
+                  aria-label={`Active CVEs: ${activeCves}`}
+                  className={cn(
+                    'text-4xl font-black leading-none',
+                    activeCves === 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-red-600 dark:text-red-400',
+                  )}
+                >
+                  {activeCves}
+                </span>
+              )}
+            </div>
+            <span
+              aria-hidden="true"
+              className="mt-3 text-xs font-semibold uppercase tracking-widest text-[var(--sea-ink-soft)]"
+            >
+              Active CVEs
+            </span>
+          </div>
+
+          <PendingStat
+            label={ecosystem === 'npm' ? 'Bundle size' : 'Package size'}
+          >
+            <Skeleton className="h-10 w-24" />
+          </PendingStat>
+
+          <div className="flex flex-col items-center bg-[var(--surface)] px-5 py-6 text-center">
+            <div className="flex flex-1 items-center justify-center">
+              {meta ? (
+                <span
+                  aria-label={`Last published: ${timeAgo(meta.lastPublishedAt)}`}
+                  className="text-4xl font-black leading-tight tracking-tight text-[var(--sea-ink)]"
+                >
+                  {timeAgo(meta.lastPublishedAt)}
+                </span>
+              ) : (
+                <Skeleton className="h-10 w-24" />
+              )}
+            </div>
+            <span
+              aria-hidden="true"
+              className="mt-3 text-xs font-semibold uppercase tracking-widest text-[var(--sea-ink-soft)]"
+            >
+              Last Published
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <SectionCard title="Score Breakdown">
+        <p className="text-sm text-[var(--sea-ink-soft)]">
+          Waiting on bundle size — the score weights size, so the grade is held
+          back until it is measured.
+        </p>
+        <div className="mt-4 grid gap-2">
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-5/6" />
+          <Skeleton className="h-3 w-4/6" />
+        </div>
+      </SectionCard>
+
+      <SectionCard title={sizeTitle}>
+        <div className="flex items-center gap-3">
+          <div
+            aria-hidden="true"
+            className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--lagoon-deep)] border-t-transparent"
+          />
+          <p className="text-sm text-[var(--sea-ink-soft)]">
+            Installing and bundling to measure real size…
+          </p>
+        </div>
+      </SectionCard>
+
+      {/* Security and Maintenance need only metadata, so they are already here */}
+      <SectionCard title="Security">
+        {vulns ? (
+          <SecurityPanel vulnerabilities={vulns} />
+        ) : (
+          <Skeleton className="h-16 w-full" />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Dependency Tree">
+        <Skeleton className="h-24 w-full" />
+      </SectionCard>
+
+      <SectionCard title="Maintenance">
+        {meta ? (
+          <MaintenancePanel data={meta} />
+        ) : (
+          <Skeleton className="h-24 w-full" />
+        )}
+      </SectionCard>
+    </div>
+  )
+}
+
+function PendingStat({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col items-center bg-[var(--surface)] px-5 py-6 text-center">
+      <div className="flex flex-1 items-center justify-center">{children}</div>
+      <span
         aria-hidden="true"
-        className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-[var(--lagoon-deep)] border-t-transparent"
-      />
-      <p className="text-sm font-medium text-[var(--sea-ink)]">
-        Analyzing package…
-      </p>
-      <p className="mt-1 text-xs text-[var(--sea-ink-soft)]">
-        This may take up to a minute for large packages
-      </p>
+        className="mt-3 text-xs font-semibold uppercase tracking-widest text-[var(--sea-ink-soft)]"
+      >
+        {label}
+      </span>
     </div>
   )
 }
@@ -435,12 +654,53 @@ function AnalysisResult({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Fetch metadata-only analysis as soon as the page mounts.
+ *
+ * Deliberately not done in the route loader: it takes a couple of seconds, and
+ * blocking SSR on it would delay the whole page. Fetching it client-side lets
+ * the shell paint immediately and the panels fill in as data arrives.
+ */
+function useQuickAnalysis(
+  ecosystem: string,
+  name: string,
+  enabled: boolean,
+): QuickAnalysisResponse | null {
+  const [quick, setQuick] = useState<QuickAnalysisResponse | null>(null)
+
+  useEffect(() => {
+    if (!enabled) return
+    let cancelled = false
+
+    getQuickAnalysis({
+      data: { ecosystem: ecosystem as 'npm' | 'pypi' | 'maven', name },
+    })
+      .then((res) => {
+        if (!cancelled) setQuick(res)
+      })
+      .catch(() => {
+        if (!cancelled) setQuick({ unavailable: true })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [ecosystem, name, enabled])
+
+  return quick
+}
+
 function PackageDetailPage() {
   const { ecosystem, name } = Route.useParams()
   const initial = Route.useLoaderData()
 
+  const isComplete = initial.status === 'complete' && Boolean(initial.data)
+  const quick = useQuickAnalysis(ecosystem, name, !isComplete)
+
   const ecosystemLabel = ECOSYSTEM_LABELS[ecosystem] ?? ecosystem
-  const meta = initial.data?.maintenanceData
+  // Prefer the persisted analysis; fall back to metadata while it is pending.
+  const meta = initial.data?.maintenanceData ?? quick?.data?.maintenanceData
+  const version = initial.data?.version ?? quick?.data?.version
 
   return (
     <main className="page-wrap px-4 pb-16 pt-8">
@@ -458,11 +718,13 @@ function PackageDetailPage() {
         )}
 
         {/* Metadata row */}
-        {initial.data && (
+        {(meta || version) && (
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
-            <span className="font-mono text-[var(--sea-ink-soft)]">
-              {formatVersion(initial.data.version)}
-            </span>
+            {version && (
+              <span className="font-mono text-[var(--sea-ink-soft)]">
+                {formatVersion(version)}
+              </span>
+            )}
             {meta?.license &&
               meta.license.length <= 50 &&
               !meta.license.includes('\n') && (
@@ -527,7 +789,11 @@ function PackageDetailPage() {
       {initial.status === 'complete' && initial.data ? (
         <AnalysisResult data={initial.data} ecosystem={ecosystem} />
       ) : initial.status === 'pending' || initial.status === 'running' ? (
-        <PendingState jobId={initial.jobId ?? 0} ecosystem={ecosystem} />
+        <ProgressiveAnalysis
+          jobId={initial.jobId ?? 0}
+          ecosystem={ecosystem}
+          quick={quick}
+        />
       ) : initial.status === 'failed' ? (
         <div
           role="alert"

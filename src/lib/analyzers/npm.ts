@@ -1,7 +1,8 @@
 import { execFile } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { createGzip } from 'node:zlib'
 import { Readable } from 'node:stream'
@@ -13,6 +14,8 @@ import type {
   SizeData,
   Vulnerability,
 } from '#/db/schema'
+import { encodeNpmName } from './npm-registry'
+import { resolveDepTreeFromRegistry } from './npm-deptree'
 
 const execFileAsync = promisify(execFile)
 
@@ -59,11 +62,62 @@ export interface NpmAnalysisResult {
 export async function analyzeNpmPackage(
   name: string,
 ): Promise<NpmAnalysisResult> {
-  const [meta, downloads] = await Promise.all([
-    fetchNpmMeta(name),
-    fetchWeeklyDownloads(name),
+  const meta = await fetchNpmMeta(name)
+
+  const distTags = meta['dist-tags'] as Record<string, string> | undefined
+  const version: string = distTags?.latest ?? 'unknown'
+  const versions = meta.versions as
+    | Record<string, Record<string, unknown>>
+    | undefined
+  const versionMeta: Record<string, unknown> = versions?.[version] ?? {}
+
+  const directDeps: Record<string, string> =
+    (versionMeta.dependencies as Record<string, string> | undefined) ?? {}
+  const peerDeps: string[] = Object.keys(
+    (versionMeta.peerDependencies as Record<string, string> | undefined) ?? {},
+  )
+
+  const [quick, depTree, sizeData] = await Promise.all([
+    quickFromMeta(name, meta),
+    // Resolved from registry metadata — no install per dependency.
+    // See npm-deptree.ts for why.
+    resolveDepTreeFromRegistry(directDeps),
+    bundlePackage(name, version, peerDeps),
   ])
 
+  return {
+    version: quick.version,
+    sizeData,
+    depTree,
+    vulnerabilities: quick.vulnerabilities,
+    maintenanceData: quick.maintenanceData,
+  }
+}
+
+/**
+ * Metadata-only analysis: everything a package page needs *except* bundle size
+ * and the dependency tree.
+ *
+ * No install and no bundling, so this resolves in a couple of seconds rather
+ * than the minutes a cold install can take. That lets maintenance, security
+ * and popularity render while the queued job is still measuring size.
+ */
+export interface NpmQuickAnalysis {
+  version: string
+  maintenanceData: MaintenanceData
+  vulnerabilities: Vulnerability[]
+}
+
+export async function fetchNpmQuickAnalysis(
+  name: string,
+): Promise<NpmQuickAnalysis> {
+  return quickFromMeta(name, await fetchNpmMeta(name))
+}
+
+async function quickFromMeta(
+  name: string,
+  meta: Record<string, unknown>,
+): Promise<NpmQuickAnalysis> {
   const distTags = meta['dist-tags'] as Record<string, string> | undefined
   const version: string = distTags?.latest ?? 'unknown'
   const versions = meta.versions as
@@ -73,7 +127,11 @@ export async function analyzeNpmPackage(
   const timeMap = meta.time as Record<string, string> | undefined
   const licenseField = meta.license as string | { type?: string } | undefined
 
-  const typescriptSupport = await detectTypescriptSupport(name, versionMeta)
+  const [downloads, typescriptSupport, osvResults] = await Promise.all([
+    fetchWeeklyDownloads(name),
+    detectTypescriptSupport(name, versionMeta),
+    queryOsvHistorical('npm', name, version),
+  ])
 
   const maintenanceData: MaintenanceData = {
     lastPublishedAt: timeMap?.[version] ?? new Date().toISOString(),
@@ -90,21 +148,11 @@ export async function analyzeNpmPackage(
     typescriptSupport,
   }
 
-  const directDeps: Record<string, string> =
-    (versionMeta.dependencies as Record<string, string> | undefined) ?? {}
-  const peerDeps: string[] = Object.keys(
-    (versionMeta.peerDependencies as Record<string, string> | undefined) ?? {},
-  )
-
-  const [sizeData, depTree, osvResults] = await Promise.all([
-    bundlePackage(name, version, peerDeps),
-    buildDepTree(name, version, directDeps, new Set(), 0),
-    queryOsvHistorical('npm', name, version),
-  ])
-
-  const vulnerabilities = mapNpmVulns(osvResults, timeMap)
-
-  return { version, sizeData, depTree, vulnerabilities, maintenanceData }
+  return {
+    version,
+    maintenanceData,
+    vulnerabilities: mapNpmVulns(osvResults, timeMap),
+  }
 }
 
 /** Map OSV results to Vulnerability, enriching fixedAt from the registry time map. */
@@ -152,28 +200,10 @@ export async function getNpmVulnerabilities(
 // ─── npm registry helpers ────────────────────────────────────────────────────
 
 async function fetchNpmMeta(name: string): Promise<Record<string, unknown>> {
-  const encoded = name.startsWith('@')
-    ? `@${encodeURIComponent(name.slice(1))}`
-    : encodeURIComponent(name)
-
-  const res = await fetch(`${NPM_REGISTRY}/${encoded}`, {
+  const res = await fetch(`${NPM_REGISTRY}/${encodeNpmName(name)}`, {
     signal: AbortSignal.timeout(15_000),
   })
   if (!res.ok) throw new Error(`npm registry error ${res.status} for "${name}"`)
-  return res.json()
-}
-
-async function fetchVersionMeta(
-  name: string,
-  version: string,
-): Promise<Record<string, unknown>> {
-  const encoded = name.startsWith('@')
-    ? `@${encodeURIComponent(name.slice(1))}`
-    : encodeURIComponent(name)
-  const res = await fetch(`${NPM_REGISTRY}/${encoded}/${version}`, {
-    signal: AbortSignal.timeout(10_000),
-  })
-  if (!res.ok) return {}
   return res.json()
 }
 
@@ -204,11 +234,13 @@ async function detectTypescriptSupport(
     const typesSlug = name.startsWith('@')
       ? name.slice(1).replace('/', '__')
       : name
-    const encoded = `@${encodeURIComponent(`types/${typesSlug}`)}`
-    const res = await fetch(`${NPM_REGISTRY}/${encoded}`, {
-      method: 'HEAD',
-      signal: AbortSignal.timeout(5_000),
-    })
+    const res = await fetch(
+      `${NPM_REGISTRY}/${encodeNpmName(`@types/${typesSlug}`)}`,
+      {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(5_000),
+      },
+    )
     if (res.ok) return 'definitely-typed'
   } catch {
     // ignore — no @types package
@@ -259,6 +291,33 @@ const ALWAYS_EXTERNAL = [
   'gatsby',
   '@remix-run/react',
 ]
+
+/**
+ * Path to our own esbuild binary.
+ *
+ * esbuild is a declared dependency, but bundling shelled out to `npx esbuild`.
+ * WORK_DIR has no esbuild in its node_modules, so npx fetched its own copy into
+ * the shared npx cache on every analysis — needless work inside the bundle
+ * timeout, and a real failure mode when that cache races with itself:
+ *
+ *   npm error ENOTEMPTY: directory not empty, rename
+ *   '.../_npx/beb367dfa21eb3f5/node_modules/esbuild' -> '...'
+ *
+ * Resolve the installed binary once instead, falling back to npx if it is
+ * somehow absent.
+ */
+const esbuildBinary = (() => {
+  try {
+    const require = createRequire(import.meta.url)
+    return join(
+      dirname(require.resolve('esbuild/package.json')),
+      'bin',
+      'esbuild',
+    )
+  } catch {
+    return null
+  }
+})()
 
 /**
  * esbuild `--external` list for measuring `name`.
@@ -323,11 +382,14 @@ function bundlePackage(
 
     // Bundle with esbuild
     const bundleOut = join(WORK_DIR, 'bundle.js')
+    const [esbuildCmd, esbuildLeadingArgs] = esbuildBinary
+      ? [esbuildBinary, [] as string[]]
+      : ['npx', ['esbuild']]
     try {
       await execFileAsync(
-        'npx',
+        esbuildCmd,
         [
-          'esbuild',
+          ...esbuildLeadingArgs,
           entry,
           '--bundle',
           '--minify',
@@ -370,85 +432,6 @@ async function gzipSize(buf: Buffer): Promise<number> {
     }
   })
   return Buffer.concat(chunks).length
-}
-
-// ─── Dependency tree ─────────────────────────────────────────────────────────
-
-const MAX_DEPTH = 5
-
-async function buildDepTree(
-  _name: string,
-  _version: string,
-  deps: Record<string, string>,
-  visited: Set<string>,
-  depth: number,
-): Promise<DepNode[]> {
-  if (depth >= MAX_DEPTH) return []
-
-  const entries = Object.entries(deps)
-  const nodes = await Promise.all(
-    entries.map(async ([depName, depRange]) => {
-      const key = `${depName}@${depRange}`
-      if (visited.has(key)) {
-        return {
-          name: depName,
-          version: depRange,
-          ecosystem: 'npm' as const,
-          selfBytes: 0,
-          totalBytes: 0,
-          children: [],
-        } satisfies DepNode
-      }
-      visited.add(key)
-
-      try {
-        const meta = await fetchVersionMeta(depName, 'latest')
-        const resolvedVersion = (meta.version as string | undefined) ?? depRange
-        const transitiveDeps =
-          (meta.dependencies as Record<string, string>) ?? {}
-        const depPeerDeps = Object.keys(
-          (meta.peerDependencies as Record<string, string> | undefined) ?? {},
-        )
-
-        const sizeData = await bundlePackage(
-          depName,
-          resolvedVersion,
-          depPeerDeps,
-        ).catch(() => ({ minifiedBytes: 0, gzipBytes: 0 }))
-        const children = await buildDepTree(
-          depName,
-          resolvedVersion,
-          transitiveDeps,
-          new Set(visited),
-          depth + 1,
-        )
-
-        const childTotal = children.reduce((s, c) => s + c.totalBytes, 0)
-        const selfBytes = sizeData.gzipBytes
-        const totalBytes = selfBytes + childTotal
-
-        return {
-          name: depName,
-          version: resolvedVersion,
-          ecosystem: 'npm' as const,
-          selfBytes,
-          totalBytes,
-          children,
-        } satisfies DepNode
-      } catch {
-        return {
-          name: depName,
-          version: depRange,
-          ecosystem: 'npm' as const,
-          selfBytes: 0,
-          totalBytes: 0,
-          children: [],
-        } satisfies DepNode
-      }
-    }),
-  )
-
-  return nodes
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────

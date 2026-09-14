@@ -38,6 +38,52 @@ export interface AnalysisResponse {
 
 const ecosystemSchema = z.enum(['npm', 'pypi', 'maven'])
 
+/**
+ * Metadata-only analysis, served without going through the queue.
+ *
+ * Maintenance, security and popularity come from registry metadata in a couple
+ * of seconds, while bundle size needs an install that can take minutes. Serving
+ * this separately lets the page fill in most of its panels straight away
+ * instead of waiting on the whole job.
+ */
+export interface QuickAnalysisResponse {
+  data?: {
+    version: string
+    maintenanceData: MaintenanceData
+    vulnerabilities: Vulnerability[]
+  }
+  /** Set when the ecosystem has no fast path, or the lookup failed. */
+  unavailable?: true
+  error?: string
+}
+
+export const getQuickAnalysis = createServerFn({ method: 'GET' })
+  .inputValidator(
+    z.object({
+      ecosystem: ecosystemSchema,
+      name: z.string().min(1),
+    }).parse,
+  )
+  .handler(async (ctx): Promise<QuickAnalysisResponse> => {
+    const { ecosystem, name } = ctx.data
+
+    // pypi and maven analysis has no install step, so there is nothing to gain
+    // from a separate metadata pass for them yet.
+    if (ecosystem !== 'npm') return { unavailable: true }
+
+    try {
+      // Imported lazily: the npm analyzer pulls in child_process and fs for
+      // bundling, which must not reach the client graph.
+      const { fetchNpmQuickAnalysis } = await import('#/lib/analyzers/npm')
+      return { data: await fetchNpmQuickAnalysis(name) }
+    } catch (err) {
+      return {
+        unavailable: true,
+        error: err instanceof Error ? err.message : 'Metadata lookup failed',
+      }
+    }
+  })
+
 type JoinedRow = {
   packages: typeof packages.$inferSelect
   analysis_results: typeof analysisResults.$inferSelect
