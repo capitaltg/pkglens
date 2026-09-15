@@ -1,0 +1,545 @@
+{
+  "generatedAt": "2026-09-14T13:31:23.410Z",
+  "results": {
+    "nanoid": {
+      "version": "6.0.1",
+      "gzip": 509,
+      "outcome": "compared"
+    },
+    "clsx": {
+      "version": "2.1.1",
+      "gzip": 331,
+      "outcome": "compared"
+    },
+    "ms": {
+      "version": "2.1.3",
+      "gzip": 932,
+      "outcome": "compared"
+    },
+    "mitt": {
+      "version": "3.0.1",
+      "gzip": 278,
+      "outcome": "compared"
+    },
+    "tiny-invariant": {
+      "version": "1.3.3",
+      "gzip": 238,
+      "outcome": "compared"
+    },
+    "lodash.get": {
+      "version": "4.4.2",
+      "gzip": 2085,
+      "outcome": "compared"
+    },
+    "classnames": {
+      "version": "2.5.1",
+      "gzip": 655,
+      "outcome": "compared"
+    },
+    "uuid": {
+      "version": "14.0.2",
+      "gzip": 3890,
+      "outcome": "compared"
+    },
+    "debug": {
+      "version": "4.4.3",
+      "gzip": 2785,
+      "outcome": "compared"
+    },
+    "kleur": {
+      "version": "4.1.5",
+      "gzip": 939,
+      "outcome": "compared"
+    },
+    "react": {
+      "version": "19.3.0",
+      "gzip": 3237,
+      "outcome": "compared"
+    },
+    "react-dom": {
+      "version": "19.3.0",
+      "gzip": 1748,
+      "outcome": "compared"
+    },
+    "vue": {
+      "version": "3.5.42",
+      "gzip": 11074,
+      "outcome": "compared"
+    },
+    "preact": {
+      "version": "10.29.8",
+      "gzip": 4923,
+      "outcome": "compared"
+    },
+    "svelte": {
+      "version": "5.57.0",
+      "gzip": 17126,
+      "outcome": "compared"
+    },
+    "solid-js": {
+      "version": "1.9.15",
+      "gzip": 8742,
+      "outcome": "compared"
+    },
+    "lodash": {
+      "version": "4.18.1",
+      "gzip": 26558,
+      "outcome": "compared"
+    },
+    "axios": {
+      "version": "1.20.0",
+      "gzip": 19706,
+      "outcome": "compared"
+    },
+    "zod": {
+      "version": "4.6.5",
+      "gzip": 92706,
+      "outcome": "compared"
+    },
+    "date-fns": {
+      "version": "4.4.0",
+      "gzip": 18427,
+      "outcome": "compared"
+    },
+    "dayjs": {
+      "version": "1.11.23",
+      "gzip": 3375,
+      "outcome": "compared"
+    },
+    "rxjs": {
+      "version": "7.8.2",
+      "gzip": 18559,
+      "outcome": "compared"
+    },
+    "immer": {
+      "version": "11.1.18",
+      "gzip": 6977,
+      "outcome": "compared"
+    },
+    "redux": {
+      "version": "5.0.1",
+      "gzip": 1487,
+      "outcome": "compared"
+    },
+    "@reduxjs/toolkit": {
+      "version": "2.12.0",
+      "gzip": 15192,
+      "outcome": "compared"
+    },
+    "zustand": {
+      "version": "5.0.15",
+      "gzip": 474,
+      "outcome": "compared"
+    },
+    "jotai": {
+      "version": "3.0.0",
+      "gzip": 3462,
+      "outcome": "compared"
+    },
+    "valtio": {
+      "version": "2.3.2",
+      "gzip": 2823,
+      "outcome": "compared"
+    },
+    "swr": {
+      "version": "2.5.1",
+      "gzip": 6348,
+      "outcome": "compared"
+    },
+    "ky": {
+      "version": "2.1.0",
+      "gzip": 9039,
+      "outcome": "compared"
+    },
+    "@mui/material": {
+      "version": "9.4.0",
+      "gzip": 165603,
+      "outcome": "compared"
+    },
+    "antd": {
+      "version": "6.6.4",
+      "gzip": 487316,
+      "outcome": "compared"
+    },
+    "@chakra-ui/react": {
+      "version": "3.37.0",
+      "gzip": 319231,
+      "outcome": "compared"
+    },
+    "react-bootstrap": {
+      "version": "2.10.10",
+      "gzip": 44575,
+      "outcome": "compared"
+    },
+    "@radix-ui/react-dialog": {
+      "version": "1.1.23",
+      "gzip": 13664,
+      "outcome": "compared"
+    },
+    "@radix-ui/react-select": {
+      "version": "2.3.7",
+      "gzip": 31445,
+      "outcome": "compared"
+    },
+    "framer-motion": {
+      "version": "13.2.0",
+      "gzip": 65924,
+      "outcome": "compared"
+    },
+    "react-select": {
+      "version": "5.10.2",
+      "gzip": 31080,
+      "outcome": "compared"
+    },
+    "react-day-picker": {
+      "version": "10.0.1",
+      "gzip": 21041,
+      "outcome": "compared"
+    },
+    "cmdk": {
+      "version": "1.1.1",
+      "gzip": 17578,
+      "outcome": "compared"
+    },
+    "lucide-react": {
+      "version": "1.46.0",
+      "gzip": 186361,
+      "outcome": "compared"
+    },
+    "react-icons": {
+      "version": "5.7.0",
+      "gzip": 2213,
+      "outcome": "compared"
+    },
+    "@headlessui/react": {
+      "version": "2.2.10",
+      "gzip": 68568,
+      "outcome": "compared"
+    },
+    "react-hook-form": {
+      "version": "7.88.0",
+      "gzip": 15156,
+      "outcome": "compared"
+    },
+    "@tanstack/react-table": {
+      "version": "9.2.4",
+      "gzip": 33482,
+      "outcome": "compared"
+    },
+    "three": {
+      "version": "0.186.0",
+      "gzip": 190271,
+      "outcome": "compared"
+    },
+    "chart.js": {
+      "version": "4.5.1",
+      "gzip": 70532,
+      "outcome": "compared"
+    },
+    "d3": {
+      "version": "7.9.0",
+      "gzip": 96358,
+      "outcome": "compared"
+    },
+    "moment": {
+      "version": "2.30.1",
+      "gzip": 20016,
+      "outcome": "compared"
+    },
+    "pdfjs-dist": {
+      "version": "6.3.289",
+      "gzip": 129919,
+      "outcome": "compared"
+    },
+    "echarts": {
+      "version": "6.1.0",
+      "gzip": 382902,
+      "outcome": "compared"
+    },
+    "plotly.js": {
+      "version": "4.1.0",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "monaco-editor": {
+      "version": "0.56.0",
+      "gzip": null,
+      "outcome": "ours-failed"
+    },
+    "katex": {
+      "version": "0.18.7",
+      "gzip": 77324,
+      "outcome": "compared"
+    },
+    "highlight.js": {
+      "version": "11.12.0",
+      "gzip": 315975,
+      "outcome": "compared"
+    },
+    "core-js": {
+      "version": "3.50.0",
+      "gzip": 107419,
+      "outcome": "compared"
+    },
+    "@faker-js/faker": {
+      "version": "10.6.0",
+      "gzip": 927403,
+      "outcome": "compared"
+    },
+    "express": {
+      "version": "5.2.1",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "koa": {
+      "version": "3.2.1",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "fastify": {
+      "version": "5.12.4",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "pg": {
+      "version": "8.23.0",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "mysql2": {
+      "version": "3.24.4",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "mongoose": {
+      "version": "9.10.0",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "ioredis": {
+      "version": "6.0.0",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "bullmq": {
+      "version": "6.3.6",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "winston": {
+      "version": "3.19.0",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "pino": {
+      "version": "10.3.1",
+      "gzip": 3665,
+      "outcome": "compared"
+    },
+    "drizzle-orm": {
+      "version": "0.45.2",
+      "gzip": 8776,
+      "outcome": "compared"
+    },
+    "prisma": {
+      "version": "8.0.0-rc.15",
+      "gzip": null,
+      "outcome": "both-failed"
+    },
+    "node-fetch": {
+      "version": "3.3.2",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "dotenv": {
+      "version": "17.4.2",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "jsonwebtoken": {
+      "version": "9.0.3",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "bcrypt": {
+      "version": "6.0.0",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "sharp": {
+      "version": "0.35.4",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "nodemailer": {
+      "version": "10.0.10",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "webpack": {
+      "version": "5.111.0",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "rollup": {
+      "version": "4.63.3",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "esbuild": {
+      "version": "0.28.2",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "vite": {
+      "version": "8.3.0",
+      "gzip": 0,
+      "outcome": "both-failed"
+    },
+    "typescript": {
+      "version": "7.0.2",
+      "gzip": 1134,
+      "outcome": "compared"
+    },
+    "eslint": {
+      "version": "10.10.0",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "prettier": {
+      "version": "3.9.6",
+      "gzip": 27173,
+      "outcome": "compared"
+    },
+    "jest": {
+      "version": "30.5.1",
+      "gzip": 0,
+      "outcome": "both-failed"
+    },
+    "vitest": {
+      "version": "5.0.0",
+      "gzip": 110980,
+      "outcome": "compared"
+    },
+    "tsx": {
+      "version": "4.23.13",
+      "gzip": 0,
+      "outcome": "both-failed"
+    },
+    "gatsby": {
+      "version": "5.16.1",
+      "gzip": 0,
+      "outcome": "both-failed"
+    },
+    "@angular/cli": {
+      "version": "22.1.8",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "@capitaltg/vero": {
+      "version": "1.17.1",
+      "gzip": 94463,
+      "outcome": "compared"
+    },
+    "@tanstack/react-query": {
+      "version": "5.102.8",
+      "gzip": 13659,
+      "outcome": "compared"
+    },
+    "@babel/core": {
+      "version": "8.0.5",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "@octokit/rest": {
+      "version": "22.0.1",
+      "gzip": 21284,
+      "outcome": "compared"
+    },
+    "@sentry/browser": {
+      "version": "10.74.0",
+      "gzip": 150509,
+      "outcome": "compared"
+    },
+    "@aws-sdk/client-s3": {
+      "version": "3.1131.0",
+      "gzip": 94573,
+      "outcome": "compared"
+    },
+    "@emotion/react": {
+      "version": "11.14.0",
+      "gzip": 8800,
+      "outcome": "compared"
+    },
+    "@floating-ui/dom": {
+      "version": "1.8.0",
+      "gzip": 8590,
+      "outcome": "compared"
+    },
+    "chalk": {
+      "version": "6.0.0",
+      "gzip": 2756,
+      "outcome": "compared"
+    },
+    "execa": {
+      "version": "10.0.1",
+      "gzip": 0,
+      "outcome": "both-failed"
+    },
+    "got": {
+      "version": "16.0.0",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "p-limit": {
+      "version": "7.3.2",
+      "gzip": 932,
+      "outcome": "compared"
+    },
+    "ora": {
+      "version": "9.4.1",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "underscore": {
+      "version": "1.13.8",
+      "gzip": 7618,
+      "outcome": "compared"
+    },
+    "jquery": {
+      "version": "4.0.0",
+      "gzip": 28059,
+      "outcome": "compared"
+    },
+    "bluebird": {
+      "version": "3.7.2",
+      "gzip": 23956,
+      "outcome": "compared"
+    },
+    "request": {
+      "version": "2.88.2",
+      "gzip": 0,
+      "outcome": "divergent-serveronly"
+    },
+    "left-pad": {
+      "version": "1.3.0",
+      "gzip": 486,
+      "outcome": "compared"
+    },
+    "firebase": {
+      "version": "12.19.0",
+      "gzip": null,
+      "outcome": "both-failed"
+    },
+    "next": {
+      "version": "16.3.5",
+      "gzip": 0,
+      "outcome": "both-failed"
+    },
+    "storybook": {
+      "version": "10.6.0",
+      "gzip": null,
+      "outcome": "both-failed"
+    }
+  }
+}
