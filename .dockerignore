@@ -1,7 +1,18 @@
 node_modules
 dist
 .git
-.gitignore
+# NOTE: .gitignore is deliberately NOT excluded.
+#
+# Tools that walk the source tree read it to know what to skip. Tailwind v4's
+# automatic source detection is one of them: without .gitignore it scanned
+# dist/, and because `vite build` runs the client pass first, the SSR pass then
+# saw dist/client/assets/*.js and generated 81 utilities the client pass never
+# did. The two passes produced different CSS, so `styles.css?url` resolved to a
+# different content hash in each — SSR linked a stylesheet that was never
+# emitted, and production served a 404 for its CSS.
+#
+# Keeping .gitignore in the build context makes the container build see the
+# same ignore rules as a local one.
 .env
 .env.local
 .env.*.local
