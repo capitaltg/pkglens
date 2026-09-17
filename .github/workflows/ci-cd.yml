@@ -2,8 +2,14 @@ name: CI / CD
 
 # CI runs on every push. Deploy (build → push to ECR → restart deployments)
 # runs only when commits land on main.
+#
+# workflow_dispatch is the manual escape hatch: if the push event for a merge
+# into main never produces a run, there is no run to re-run from the Actions UI
+# and the only other way to deploy that commit is an empty commit. Dispatch it
+# against main instead (Actions → CI / CD → Run workflow).
 on:
   push:
+  workflow_dispatch:
 
 env:
   AWS_REGION: us-east-1
@@ -31,8 +37,11 @@ jobs:
   deploy:
     name: Build → ECR → restart deployments
     needs: ci
-    # Only on a push to main (not PRs, not other branches).
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Only on main (not PRs, not other branches) — whether main got here by a
+    # push or by a manual dispatch.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required for OIDC role assumption
